@@ -1,0 +1,3 @@
+[submodule "lib_esp32/epdiy"]
+	path = lib_esp32/epdiy
+	url = https://github.com/juicecultus/epdiy.git

@@ -1,4 +1,27 @@
-# EPub-InkPlate An EPub Reader for InkPlate devices
+# EPub-M5Stack-Paper-S3 (fork of EPub-InkPlate)
+
+This repository is a fork of https://github.com/turgu1/EPub-InkPlate, ported to support the **M5Stack Paper S3** (ESP32-S3).
+
+- **Upstream**: https://github.com/turgu1/EPub-InkPlate
+- **This fork**: https://github.com/juicecultus/EPub-M5Stack-Paper-S3
+
+### Quick start (M5Stack Paper S3)
+
+```bash
+git clone --recurse-submodules https://github.com/juicecultus/EPub-M5Stack-Paper-S3.git
+cd EPub-M5Stack-Paper-S3
+
+# (Optional safety) ensure submodules are initialized
+git submodule update --init --recursive
+
+# Build
+pio run -e paper_s3
+
+# Flash
+pio run -e paper_s3 -t upload
+```
+
+The PlatformIO environment for this device is `paper_s3` (see `platformio.ini`).
 
 ## Last news
 
