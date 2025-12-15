@@ -31,6 +31,9 @@ class MatrixBooksDirViewer : public BooksDirViewer
     int16_t  line_count;
     int16_t  page_count;
     int16_t  first_entry_ypos;
+    int16_t  grid_left;
+    int16_t  cover_box_w;
+    int16_t  cover_box_h;
     uint16_t title_font_height;
     uint16_t author_font_height;
     uint16_t pagenbr_font_height;
@@ -42,7 +45,7 @@ class MatrixBooksDirViewer : public BooksDirViewer
 
   public:
 
-    MatrixBooksDirViewer() : current_item_idx(-1), current_page_nbr(-1) {}
+    MatrixBooksDirViewer() : current_item_idx(-1), current_page_nbr(-1), grid_left(5), cover_box_w(BooksDir::max_cover_width), cover_box_h(BooksDir::max_cover_height) {}
     
     void setup();
     
@@ -58,9 +61,15 @@ class MatrixBooksDirViewer : public BooksDirViewer
     int16_t prev_column();
 
     int16_t get_index_at(uint16_t x, uint16_t y) {
-      if ((x < 5) || (y < first_entry_ypos)) return -1;
-      int16_t line_idx = (y - first_entry_ypos) / (BooksDir::max_cover_height + vert_space_between_entries);
-      int16_t column_idx = (x - 5) / (BooksDir::max_cover_width + horiz_space_between_entries);
+      #if defined(BOARD_TYPE_PAPER_S3)
+        if ((x < (uint16_t)grid_left) || (y < (uint16_t)first_entry_ypos)) return -1;
+        int16_t line_idx = (y - first_entry_ypos) / (cover_box_h + vert_space_between_entries);
+        int16_t column_idx = (x - grid_left) / (cover_box_w + horiz_space_between_entries);
+      #else
+        if ((x < 5) || (y < first_entry_ypos)) return -1;
+        int16_t line_idx = (y - first_entry_ypos) / (BooksDir::max_cover_height + vert_space_between_entries);
+        int16_t column_idx = (x - 5) / (BooksDir::max_cover_width + horiz_space_between_entries);
+      #endif
       if ((line_idx >= line_count) || (column_idx >= column_count)) return -1;
       #if defined(BOARD_TYPE_PAPER_S3)
         int16_t index_in_page = line_idx * column_count + column_idx;
