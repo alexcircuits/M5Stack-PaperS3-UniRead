@@ -9,6 +9,8 @@ extern "C" {
   #include <epd_display.h>
 }
 
+#include <FastEPD.h>
+
 // Board definition implemented in PaperS3Support/EpdiyPaperS3Board.c
 extern "C" {
   extern const EpdBoardDefinition paper_s3_board;
@@ -22,7 +24,7 @@ extern "C" {
 #define EPD_HEIGHT 540
 #endif
 
-static EpdiyHighlevelState s_hl;
+static FASTEPD s_epd;
 static bool s_epd_initialized = false;
 static uint8_t *s_framebuffer = nullptr;
 static bool s_force_full = true;
@@ -38,7 +40,7 @@ uint16_t Screen::height = EPD_HEIGHT;
 void Screen::clear()
 {
   if (!s_epd_initialized) return;
-  epd_hl_set_all_white(&s_hl);
+  s_epd.fillScreen(0x0F);
 }
 
 void Screen::update(bool no_full)
@@ -46,23 +48,23 @@ void Screen::update(bool no_full)
   if (!s_epd_initialized) return;
 
   if (s_force_full) {
-    epd_hl_update_screen(&s_hl, MODE_GC16, s_temperature);
+    s_epd.fullUpdate(CLEAR_FAST, true, nullptr);
     s_force_full = false;
     s_partial_count = PARTIAL_COUNT_ALLOWED;
     return;
   }
 
   if (no_full) {
-    epd_hl_update_screen(&s_hl, MODE_GL16, s_temperature);
+    s_epd.fullUpdate(CLEAR_NONE, true, nullptr);
     s_partial_count = 0;
     return;
   }
 
   if (s_partial_count <= 0) {
-    epd_hl_update_screen(&s_hl, MODE_GC16, s_temperature);
+    s_epd.fullUpdate(CLEAR_FAST, true, nullptr);
     s_partial_count = PARTIAL_COUNT_ALLOWED;
   } else {
-    epd_hl_update_screen(&s_hl, MODE_GL16, s_temperature);
+    s_epd.fullUpdate(CLEAR_NONE, true, nullptr);
     s_partial_count--;
   }
 }
@@ -76,24 +78,17 @@ void Screen::force_full_update()
 void Screen::setup(PixelResolution resolution, Orientation orientation)
 {
   if (!s_epd_initialized) {
-    epd_set_board(&paper_s3_board);
-    epd_init(epd_current_board(), &ED047TC2, EPD_OPTIONS_DEFAULT);
-    // Rotate the epdiy drawing coordinates so that the logical page is
-    // portrait when the device is held with USB-C at the bottom and the
-    // power button on the right.
-    epd_set_rotation(EPD_ROT_INVERTED_PORTRAIT);
-    // The C fallback for the ESP32-S3 LUT path is slower than the original
-    // vector assembly, so we run the LCD at 5 MHz for stability.
-    epd_set_lcd_pixel_clock_MHz(5);
+    int rc = s_epd.initPanel(BB_PANEL_M5PAPERS3, 20000000);
+    if (rc != BBEP_SUCCESS) {
+      return;
+    }
 
-    s_hl = epd_hl_init(EPD_BUILTIN_WAVEFORM);
-    epd_hl_set_all_white(&s_hl);
-    s_framebuffer = epd_hl_get_framebuffer(&s_hl);
+    s_epd.setMode(BB_MODE_4BPP);
+    s_epd.setRotation(90);
+    s_framebuffer = s_epd.currentBuffer();
 
-    epd_poweron();
-    // Ensure any previous image on the panel is fully cleared on first
-    // boot so we start from a clean white screen.
-    epd_fullclear(&s_hl, s_temperature);
+    s_epd.fillScreen(0x0F);
+    s_epd.fullUpdate(CLEAR_FAST, true, nullptr);
     s_epd_initialized = true;
     s_force_full = false;
     s_partial_count = PARTIAL_COUNT_ALLOWED;
@@ -177,18 +172,25 @@ void Screen::draw_bitmap(const unsigned char * bitmap_data, Dim dim, Pos pos)
 {
   if (!s_epd_initialized || (bitmap_data == nullptr)) return;
 
-  uint16_t x_max = pos.x + dim.width;
-  uint16_t y_max = pos.y + dim.height;
+  const int32_t x0 = pos.x;
+  const int32_t y0 = pos.y;
+  const int32_t x1 = x0 + dim.width;
+  const int32_t y1 = y0 + dim.height;
 
-  if (x_max > width)  x_max = width;
-  if (y_max > height) y_max = height;
+  const int32_t x_start = (x0 < 0) ? 0 : x0;
+  const int32_t y_start = (y0 < 0) ? 0 : y0;
+  const int32_t x_end = (x1 > (int32_t)width) ? (int32_t)width : x1;
+  const int32_t y_end = (y1 > (int32_t)height) ? (int32_t)height : y1;
 
-  // For best locality with the rotated coordinate system, iterate X (screen) outer.
-  for (uint16_t x = pos.x; x < x_max; ++x) {
-    for (uint16_t y = pos.y; y < y_max; ++y) {
-      const uint32_t p = (uint32_t)(y - pos.y) * dim.width + (x - pos.x);
+  if (x_start >= x_end || y_start >= y_end) return;
+
+  for (int32_t x = x_start; x < x_end; ++x) {
+    const int32_t sx = x - x0;
+    for (int32_t y = y_start; y < y_end; ++y) {
+      const int32_t sy = y - y0;
+      const uint32_t p = (uint32_t)sy * (uint32_t)dim.width + (uint32_t)sx;
       const uint8_t v = bitmap_data[p];
-      set_pixel_nibble_screen(x, y, gray8_to_nibble(v));
+      set_pixel_nibble_screen((uint16_t)x, (uint16_t)y, gray8_to_nibble(v));
     }
   }
 }
@@ -197,23 +199,27 @@ void Screen::draw_glyph(const unsigned char * bitmap_data, Dim dim, Pos pos, uin
 {
   if (!s_epd_initialized || (bitmap_data == nullptr)) return;
 
-  uint16_t x_max = pos.x + dim.width;
-  uint16_t y_max = pos.y + dim.height;
+  const int32_t x0 = pos.x;
+  const int32_t y0 = pos.y;
+  const int32_t x1 = x0 + dim.width;
+  const int32_t y1 = y0 + dim.height;
 
-  if (x_max > width)  x_max = width;
-  if (y_max > height) y_max = height;
+  const int32_t x_start = (x0 < 0) ? 0 : x0;
+  const int32_t y_start = (y0 < 0) ? 0 : y0;
+  const int32_t x_end = (x1 > (int32_t)width) ? (int32_t)width : x1;
+  const int32_t y_end = (y1 > (int32_t)height) ? (int32_t)height : y1;
 
-  // Glyph buffer is 8-bit alpha (0=transparent..255=opaque). We draw it as
-  // black with intensity proportional to alpha.
-  for (uint16_t i = 0; i < dim.width && (pos.x + i) < x_max; ++i) {
-    const uint16_t x = (uint16_t)(pos.x + i);
-    for (uint16_t j = 0; j < dim.height && (pos.y + j) < y_max; ++j) {
-      const uint16_t y = (uint16_t)(pos.y + j);
-      const uint8_t a = bitmap_data[j * pitch + i];
+  if (x_start >= x_end || y_start >= y_end) return;
+
+  for (int32_t x = x_start; x < x_end; ++x) {
+    const int32_t sx = x - x0;
+    for (int32_t y = y_start; y < y_end; ++y) {
+      const int32_t sy = y - y0;
+      const uint8_t a = bitmap_data[(uint32_t)sy * (uint32_t)pitch + (uint32_t)sx];
       if (!a) continue;
       const uint8_t nib = alpha8_to_nibble(a);
       if (nib == 0x0F) continue;
-      set_pixel_nibble_screen(x, y, nib);
+      set_pixel_nibble_screen((uint16_t)x, (uint16_t)y, nib);
     }
   }
 }
@@ -222,23 +228,31 @@ void Screen::draw_rectangle(Dim dim, Pos pos, uint8_t color)
 {
   if (!s_epd_initialized) return;
 
-  uint16_t x_max = pos.x + dim.width;
-  uint16_t y_max = pos.y + dim.height;
-  if (x_max > width)  x_max = width;
-  if (y_max > height) y_max = height;
-  if (x_max <= pos.x || y_max <= pos.y) return;
+  const int32_t x0 = pos.x;
+  const int32_t y0 = pos.y;
+  const int32_t x1 = x0 + dim.width;
+  const int32_t y1 = y0 + dim.height;
+  const int32_t x_start = (x0 < 0) ? 0 : x0;
+  const int32_t y_start = (y0 < 0) ? 0 : y0;
+  const int32_t x_end = (x1 > (int32_t)width) ? (int32_t)width : x1;
+  const int32_t y_end = (y1 > (int32_t)height) ? (int32_t)height : y1;
+  if (x_start >= x_end || y_start >= y_end) return;
 
   const uint8_t nib = gray3_to_nibble(color);
 
   // Top and bottom edges
-  for (uint16_t x = pos.x; x < x_max; ++x) {
-    set_pixel_nibble_screen(x, pos.y, nib);
-    set_pixel_nibble_screen(x, (uint16_t)(y_max - 1), nib);
+  const uint16_t top_y = (uint16_t)y_start;
+  const uint16_t bottom_y = (uint16_t)(y_end - 1);
+  for (int32_t x = x_start; x < x_end; ++x) {
+    set_pixel_nibble_screen((uint16_t)x, top_y, nib);
+    set_pixel_nibble_screen((uint16_t)x, bottom_y, nib);
   }
   // Left and right edges
-  for (uint16_t y = pos.y; y < y_max; ++y) {
-    set_pixel_nibble_screen(pos.x, y, nib);
-    set_pixel_nibble_screen((uint16_t)(x_max - 1), y, nib);
+  const uint16_t left_x = (uint16_t)x_start;
+  const uint16_t right_x = (uint16_t)(x_end - 1);
+  for (int32_t y = y_start; y < y_end; ++y) {
+    set_pixel_nibble_screen(left_x, (uint16_t)y, nib);
+    set_pixel_nibble_screen(right_x, (uint16_t)y, nib);
   }
 }
 
@@ -252,17 +266,21 @@ void Screen::colorize_region(Dim dim, Pos pos, uint8_t color)
 {
   if (!s_epd_initialized) return;
 
-  uint16_t x_max = pos.x + dim.width;
-  uint16_t y_max = pos.y + dim.height;
-  if (x_max > width)  x_max = width;
-  if (y_max > height) y_max = height;
-  if (x_max <= pos.x || y_max <= pos.y) return;
+  const int32_t x0 = pos.x;
+  const int32_t y0 = pos.y;
+  const int32_t x1 = x0 + dim.width;
+  const int32_t y1 = y0 + dim.height;
+  const int32_t x_start = (x0 < 0) ? 0 : x0;
+  const int32_t y_start = (y0 < 0) ? 0 : y0;
+  const int32_t x_end = (x1 > (int32_t)width) ? (int32_t)width : x1;
+  const int32_t y_end = (y1 > (int32_t)height) ? (int32_t)height : y1;
+  if (x_start >= x_end || y_start >= y_end) return;
 
   const uint8_t nib = gray3_to_nibble(color);
 
-  for (uint16_t x = pos.x; x < x_max; ++x) {
-    for (uint16_t y = pos.y; y < y_max; ++y) {
-      set_pixel_nibble_screen(x, y, nib);
+  for (int32_t x = x_start; x < x_end; ++x) {
+    for (int32_t y = y_start; y < y_end; ++y) {
+      set_pixel_nibble_screen((uint16_t)x, (uint16_t)y, nib);
     }
   }
 }

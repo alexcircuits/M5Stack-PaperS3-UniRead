@@ -69,12 +69,10 @@ public:
 
   static void * ps_malloc(uint32_t size)
   {
-    void * mem = nullptr;
-    if (heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM) > size) {
-      mem = heap_caps_malloc(size, MALLOC_CAP_SPIRAM);
-    }
+    void * mem = heap_caps_malloc(size, MALLOC_CAP_SPIRAM);
     if (mem == nullptr) {
-      ESP_LOGE(TAG, "Not enough memory on PSRAM!!! (Asking %u bytes)", size);
+      size_t largest = heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM);
+      ESP_LOGE(TAG, "Not enough memory on PSRAM!!! (Asking %u bytes, largest block=%u)", size, (unsigned)largest);
     }
     return mem;
   }
