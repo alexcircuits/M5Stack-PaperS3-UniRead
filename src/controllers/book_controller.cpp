@@ -138,11 +138,18 @@ BookController::open_book_file(
               book_viewer.show_page(current_page_id);
             }
           } else {           
+            LOG_I("Book menu open (tap-center) x=%u y=%u", (unsigned)event.x, (unsigned)event.y);
             app_controller.set_controller(AppController::Ctrl::PARAM);
           }
         } else {           
+          LOG_I("Book menu open (tap-bottom) x=%u y=%u", (unsigned)event.x, (unsigned)event.y);
           app_controller.set_controller(AppController::Ctrl::PARAM);
         }
+        break;
+
+      case EventMgr::EventKind::HOLD:
+        LOG_I("Book menu open (hold) x=%u y=%u", (unsigned)event.x, (unsigned)event.y);
+        app_controller.set_controller(AppController::Ctrl::PARAM);
         break;
         
       default:

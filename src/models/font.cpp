@@ -34,11 +34,17 @@ Font::add_buff_to_byte_pool()
 }
 
 uint8_t * 
-Font::byte_pool_alloc(uint16_t size)
+Font::byte_pool_alloc(uint32_t size)
 {
   if (size > BYTE_POOL_SIZE) {
-    LOG_E("Byte Pool Size NOT BIG ENOUGH!!!");
-    std::abort();
+    LOG_E("Byte Pool Size NOT BIG ENOUGH!!! (%u > %u)", (unsigned)size, (unsigned)BYTE_POOL_SIZE);
+    uint8_t * buff = (uint8_t *) allocate(size);
+    if (buff == nullptr) {
+      LOG_E("Unable to allocate memory for glyph.");
+      msg_viewer.out_of_memory("glyph allocation");
+    }
+    large_allocs.push_front(buff);
+    return buff;
   }
   if (byte_pools.empty() || (byte_pool_idx + size) > BYTE_POOL_SIZE) {
     LOG_D("Adding new Byte Pool buffer.");
@@ -67,6 +73,11 @@ Font::clear_cache()
     free(buff);
   }
   byte_pools.clear();
+
+  for (auto * buff : large_allocs) {
+    free(buff);
+  }
+  large_allocs.clear();
   
   cache.clear();
   cache.reserve(50);

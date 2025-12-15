@@ -7,6 +7,7 @@
 #include "nvs_flash.h"
 
 #include <map>
+#include <mutex>
 
 class NVSMgr
 {
@@ -50,13 +51,13 @@ class NVSMgr
     };
     #pragma pack(pop)
 
-    nvs_handle_t nvs_handle;
+    std::recursive_mutex  mutex;
     bool         initialized;
 
-    bool retrieve(uint32_t index,                      NVSData & nvs_data);
-    bool     save(                uint32_t   id, const NVSData & nvs_data);
-    bool   update(uint32_t index, uint32_t   id, const NVSData & nvs_data);
-    void   remove(uint32_t index);
+    bool retrieve(nvs_handle_t handle, uint32_t index,                      NVSData & nvs_data);
+    bool     save(nvs_handle_t handle,                 uint32_t   id, const NVSData & nvs_data);
+    bool   update(nvs_handle_t handle, uint32_t index, uint32_t   id, const NVSData & nvs_data);
+    void   remove(nvs_handle_t handle, uint32_t index);
     bool  find_id(uint32_t id, uint32_t & index);
     void     show();
 

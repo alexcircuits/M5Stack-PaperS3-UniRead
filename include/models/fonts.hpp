@@ -47,6 +47,7 @@ class Fonts
      *         it returns the pointer to the first font in the list.
      */
     Font * get(int16_t index) {
+      std::scoped_lock guard(mutex);
       Font * f; 
       if (index >= font_cache.size()) {
         LOG_E("Fonts.get(): Wrong index: %d vs size: %u", index, font_cache.size());
@@ -77,6 +78,7 @@ class Fonts
      *         at index, returns the name of the first in the list.
      */
     const char * get_name(int16_t index) const {
+      std::scoped_lock guard(mutex);
       if (index >= font_cache.size()) {
         LOG_E("Fonts.get(): Wrong index: %d vs size: %u", index, font_cache.size());
         return font_cache[1].name.c_str(); 
@@ -134,7 +136,9 @@ class Fonts
   private:
     typedef std::vector<FontEntry> FontCache;
     FontCache font_cache;
-    std::mutex mutex;
+    mutable std::mutex mutex;
+
+    std::vector<Font *> retired_fonts;
 
     uint8_t       font_count;
     char *        font_names[8];

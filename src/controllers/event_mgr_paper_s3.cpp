@@ -14,7 +14,7 @@
   #include "freertos/FreeRTOS.h"
   #include "freertos/task.h"
   #include "freertos/queue.h"
-  #include "driver/i2c.h"
+  #include "driver/i2c_master.h"
   #include "esp_log.h"
 #endif
 
@@ -26,62 +26,61 @@ static constexpr char const * TAG = "EventMgrPaperS3";
 
 static const gpio_num_t PAPERS3_GT911_SDA_GPIO = GPIO_NUM_41;
 static const gpio_num_t PAPERS3_GT911_SCL_GPIO = GPIO_NUM_42;
-static const i2c_port_t PAPERS3_GT911_I2C_PORT = I2C_NUM_0;
+static const i2c_port_num_t PAPERS3_GT911_I2C_PORT = I2C_NUM_1;
 
 static uint8_t gt911_addr = 0x14;
 static bool    gt911_ok   = false;
 
+static uint16_t gt911_x_max = 0;
+static uint16_t gt911_y_max = 0;
+
+static i2c_master_bus_handle_t gt911_bus = nullptr;
+static i2c_master_dev_handle_t gt911_dev_14 = nullptr;
+static i2c_master_dev_handle_t gt911_dev_5d = nullptr;
+
 static QueueHandle_t input_event_queue = nullptr;
+
+static inline i2c_master_dev_handle_t gt911_handle_for_addr(uint8_t addr)
+{
+  if (addr == 0x14) return gt911_dev_14;
+  if (addr == 0x5D) return gt911_dev_5d;
+  return nullptr;
+}
 
 static esp_err_t gt911_write_reg(uint8_t addr, uint16_t reg, const uint8_t * data, size_t len)
 {
-  i2c_cmd_handle_t cmd = i2c_cmd_link_create();
-  if (cmd == nullptr) return ESP_FAIL;
+  i2c_master_dev_handle_t dev = gt911_handle_for_addr(addr);
+  if (dev == nullptr) return ESP_ERR_INVALID_STATE;
 
   uint8_t reg_hi = reg >> 8;
   uint8_t reg_lo = reg & 0xFF;
 
-  i2c_master_start(cmd);
-  i2c_master_write_byte(cmd, (addr << 1) | I2C_MASTER_WRITE, true);
-  i2c_master_write_byte(cmd, reg_hi, true);
-  i2c_master_write_byte(cmd, reg_lo, true);
-  if ((data != nullptr) && (len != 0)) {
-    i2c_master_write(cmd, (uint8_t *)data, len, true);
-  }
-  i2c_master_stop(cmd);
+  uint8_t reg_buf[2] = { reg_hi, reg_lo };
 
-  esp_err_t ret = i2c_master_cmd_begin(PAPERS3_GT911_I2C_PORT, cmd, pdMS_TO_TICKS(100));
-  i2c_cmd_link_delete(cmd);
-  return ret;
+  if ((data != nullptr) && (len != 0)) {
+    i2c_master_transmit_multi_buffer_info_t buffers[2];
+    buffers[0].write_buffer = reg_buf;
+    buffers[0].buffer_size = sizeof(reg_buf);
+    buffers[1].write_buffer = (uint8_t *)data;
+    buffers[1].buffer_size = len;
+    return i2c_master_multi_buffer_transmit(dev, buffers, 2, 100);
+  }
+
+  return i2c_master_transmit(dev, reg_buf, sizeof(reg_buf), 100);
 }
 
 static esp_err_t gt911_read_reg(uint8_t addr, uint16_t reg, uint8_t * data, size_t len)
 {
   if ((data == nullptr) || (len == 0)) return ESP_ERR_INVALID_ARG;
 
-  i2c_cmd_handle_t cmd = i2c_cmd_link_create();
-  if (cmd == nullptr) return ESP_FAIL;
+  i2c_master_dev_handle_t dev = gt911_handle_for_addr(addr);
+  if (dev == nullptr) return ESP_ERR_INVALID_STATE;
 
   uint8_t reg_hi = reg >> 8;
   uint8_t reg_lo = reg & 0xFF;
 
-  i2c_master_start(cmd);
-  i2c_master_write_byte(cmd, (addr << 1) | I2C_MASTER_WRITE, true);
-  i2c_master_write_byte(cmd, reg_hi, true);
-  i2c_master_write_byte(cmd, reg_lo, true);
-
-  i2c_master_start(cmd);
-  i2c_master_write_byte(cmd, (addr << 1) | I2C_MASTER_READ, true);
-
-  if (len > 1) {
-    i2c_master_read(cmd, data, len - 1, I2C_MASTER_ACK);
-  }
-  i2c_master_read_byte(cmd, data + len - 1, I2C_MASTER_NACK);
-  i2c_master_stop(cmd);
-
-  esp_err_t ret = i2c_master_cmd_begin(PAPERS3_GT911_I2C_PORT, cmd, pdMS_TO_TICKS(100));
-  i2c_cmd_link_delete(cmd);
-  return ret;
+  uint8_t reg_buf[2] = { reg_hi, reg_lo };
+  return i2c_master_transmit_receive(dev, reg_buf, sizeof(reg_buf), data, len, 100);
 }
 
 static bool gt911_read_point(uint16_t * x, uint16_t * y)
@@ -105,6 +104,40 @@ static bool gt911_read_point(uint16_t * x, uint16_t * y)
 
   *x = (uint16_t)((data[1] << 8) | data[0]);
   *y = (uint16_t)((data[3] << 8) | data[2]);
+
+  if (gt911_x_max != 0 && gt911_y_max != 0) {
+    uint16_t sx = Screen::get_width();
+    uint16_t sy = Screen::get_height();
+
+    auto abs_u32 = [](int32_t v) -> uint32_t { return (v < 0) ? (uint32_t)(-v) : (uint32_t)v; };
+    uint32_t diff_no_swap = abs_u32((int32_t)gt911_x_max - (int32_t)sx) + abs_u32((int32_t)gt911_y_max - (int32_t)sy);
+    uint32_t diff_swap    = abs_u32((int32_t)gt911_x_max - (int32_t)sy) + abs_u32((int32_t)gt911_y_max - (int32_t)sx);
+    bool swap = diff_swap < diff_no_swap;
+
+    uint16_t raw_x = *x;
+    uint16_t raw_y = *y;
+    if (swap) {
+      uint16_t tmp = raw_x;
+      raw_x = raw_y;
+      raw_y = tmp;
+    }
+
+    uint32_t x_den = (swap ? gt911_y_max : gt911_x_max);
+    uint32_t y_den = (swap ? gt911_x_max : gt911_y_max);
+
+    if (x_den > 1) {
+      raw_x = (uint16_t)(((uint32_t)raw_x * (uint32_t)(sx - 1)) / (x_den - 1));
+    }
+    if (y_den > 1) {
+      raw_y = (uint16_t)(((uint32_t)raw_y * (uint32_t)(sy - 1)) / (y_den - 1));
+    }
+
+    if (raw_x >= sx) raw_x = sx - 1;
+    if (raw_y >= sy) raw_y = sy - 1;
+
+    *x = raw_x;
+    *y = raw_y;
+  }
 
   uint8_t zero = 0;
   gt911_write_reg(gt911_addr, 0x814E, &zero, 1);
@@ -178,6 +211,8 @@ static void touch_task(void * param)
             xQueueSend(input_event_queue, &ev, 0);
           }
 
+          ESP_LOGI(TAG, "Touch HOLD x=%u y=%u", (unsigned)ev.x, (unsigned)ev.y);
+
           hold_sent = true;
         }
       }
@@ -206,15 +241,18 @@ static void touch_task(void * param)
         if (hold_sent) {
           // End of a long-press sequence.
           ev.kind = EventMgr::EventKind::RELEASE;
+          ESP_LOGI(TAG, "Touch RELEASE x=%u y=%u", (unsigned)ev.x, (unsigned)ev.y);
         }
         else if ((abs_dx > abs_dy) && (abs_dx > (int)swipe_threshold)) {
           // Horizontal swipe for page-level navigation.
           ev.kind = (dx > 0) ? EventMgr::EventKind::SWIPE_RIGHT
                              : EventMgr::EventKind::SWIPE_LEFT;
+          ESP_LOGI(TAG, "Touch SWIPE x=%u y=%u dx=%d", (unsigned)ev.x, (unsigned)ev.y, dx);
         }
         else {
           // Short interaction: treat as a TAP.
           ev.kind = EventMgr::EventKind::TAP;
+          ESP_LOGI(TAG, "Touch TAP x=%u y=%u", (unsigned)ev.x, (unsigned)ev.y);
         }
 
         if ((ev.kind != EventMgr::EventKind::NONE) && (input_event_queue != nullptr)) {
@@ -223,7 +261,7 @@ static void touch_task(void * param)
       }
     }
 
-    vTaskDelay(pdMS_TO_TICKS(50));
+    vTaskDelay(pdMS_TO_TICKS(20));
   }
 }
 
@@ -236,37 +274,61 @@ bool EventMgr::setup()
     input_event_queue = xQueueCreate(10, sizeof(Event));
   }
 
-  i2c_config_t conf = {};
-  conf.mode = I2C_MODE_MASTER;
-  conf.sda_io_num = PAPERS3_GT911_SDA_GPIO;
-  conf.sda_pullup_en = GPIO_PULLUP_ENABLE;
-  conf.scl_io_num = PAPERS3_GT911_SCL_GPIO;
-  conf.scl_pullup_en = GPIO_PULLUP_ENABLE;
-  conf.master.clk_speed = 400000;
+  i2c_master_bus_config_t bus_cfg = {};
+  bus_cfg.i2c_port = PAPERS3_GT911_I2C_PORT;
+  bus_cfg.sda_io_num = PAPERS3_GT911_SDA_GPIO;
+  bus_cfg.scl_io_num = PAPERS3_GT911_SCL_GPIO;
+  bus_cfg.clk_source = I2C_CLK_SRC_DEFAULT;
+  bus_cfg.glitch_ignore_cnt = 7;
+  bus_cfg.intr_priority = 0;
+  bus_cfg.trans_queue_depth = 0;
+  bus_cfg.flags.enable_internal_pullup = 1;
 
-  esp_err_t err = i2c_param_config(PAPERS3_GT911_I2C_PORT, &conf);
+  esp_err_t err = i2c_new_master_bus(&bus_cfg, &gt911_bus);
   if (err != ESP_OK) {
-    ESP_LOGE(TAG, "i2c_param_config failed: %d", (int)err);
+    ESP_LOGE(TAG, "i2c_new_master_bus failed: %d", (int)err);
   }
   else {
-    err = i2c_driver_install(PAPERS3_GT911_I2C_PORT, I2C_MODE_MASTER, 0, 0, 0);
-    if ((err != ESP_OK) && (err != ESP_ERR_INVALID_STATE)) {
-      ESP_LOGE(TAG, "i2c_driver_install failed: %d", (int)err);
+    uint8_t detected_addr = 0;
+    if (i2c_master_probe(gt911_bus, 0x14, 100) == ESP_OK) {
+      detected_addr = 0x14;
+    }
+    else if (i2c_master_probe(gt911_bus, 0x5D, 100) == ESP_OK) {
+      detected_addr = 0x5D;
+    }
+
+    if (detected_addr == 0) {
+      ESP_LOGE(TAG, "GT911 not found on I2C bus");
     }
     else {
-      uint8_t buf = 0;
-      if (gt911_read_reg(0x14, 0x8140, &buf, 1) == ESP_OK) {
-        gt911_addr = 0x14;
-        gt911_ok   = true;
-        ESP_LOGI(TAG, "GT911 detected at 0x14");
+      i2c_device_config_t dev_cfg = {};
+      dev_cfg.dev_addr_length = I2C_ADDR_BIT_LEN_7;
+      dev_cfg.device_address = detected_addr;
+      dev_cfg.scl_speed_hz = 400000;
+      dev_cfg.scl_wait_us = 0;
+      dev_cfg.flags.disable_ack_check = 0;
+
+      if (detected_addr == 0x14) {
+        err = i2c_master_bus_add_device(gt911_bus, &dev_cfg, &gt911_dev_14);
+      } else {
+        err = i2c_master_bus_add_device(gt911_bus, &dev_cfg, &gt911_dev_5d);
       }
-      else if (gt911_read_reg(0x5D, 0x8140, &buf, 1) == ESP_OK) {
-        gt911_addr = 0x5D;
-        gt911_ok   = true;
-        ESP_LOGI(TAG, "GT911 detected at 0x5D");
+
+      if (err != ESP_OK) {
+        ESP_LOGE(TAG, "i2c_master_bus_add_device failed: %d", (int)err);
       }
       else {
-        ESP_LOGE(TAG, "GT911 not found on I2C bus");
+        gt911_addr = detected_addr;
+        gt911_ok = true;
+        ESP_LOGI(TAG, "GT911 detected at 0x%02X", (unsigned)detected_addr);
+
+        uint8_t cfg[4] = { 0 };
+        if (gt911_read_reg(gt911_addr, 0x8048, cfg, sizeof(cfg)) == ESP_OK) {
+          gt911_x_max = (uint16_t)((cfg[1] << 8) | cfg[0]);
+          gt911_y_max = (uint16_t)((cfg[3] << 8) | cfg[2]);
+          ESP_LOGI(TAG, "GT911 max: x=%u y=%u (screen %u x %u)", (unsigned)gt911_x_max, (unsigned)gt911_y_max,
+                   (unsigned)Screen::get_width(), (unsigned)Screen::get_height());
+        }
       }
     }
   }

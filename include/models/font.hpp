@@ -70,7 +70,7 @@ class Font
 
     inline void    set_fonts_cache_index(int16_t index) { fonts_cache_index = index; }
     inline int16_t get_fonts_cache_index()              { return fonts_cache_index;  }
-    uint8_t      * byte_pool_alloc(uint16_t size);
+    uint8_t      * byte_pool_alloc(uint32_t size);
 
     /**
      * @brief Face normal line height
@@ -103,6 +103,7 @@ protected:
     typedef std::unordered_map<int16_t,  Glyphs>  GlyphsCache;
     typedef uint8_t                              BytePool[BYTE_POOL_SIZE];
     typedef std::forward_list<BytePool *>        BytePools;
+    typedef std::forward_list<uint8_t *>         LargeAllocs;
     
     GlyphsCache        cache;
     int16_t            fonts_cache_index;
@@ -112,6 +113,7 @@ protected:
     MemoryPool<Glyph>  bitmap_glyph_pool;
     
     BytePools          byte_pools;
+    LargeAllocs        large_allocs;
     uint16_t           byte_pool_idx;
 
     void      add_buff_to_byte_pool();

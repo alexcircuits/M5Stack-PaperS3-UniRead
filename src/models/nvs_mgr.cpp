@@ -6,6 +6,7 @@
 bool
 NVSMgr::setup(bool force_erase)
 {
+  std::scoped_lock guard(mutex);
   bool erased = false;
   esp_err_t err;
 
@@ -35,21 +36,24 @@ NVSMgr::setup(bool force_erase)
   } 
   if (err != ESP_OK) LOG_E("NVS Error: %s", esp_err_to_name(err));
 
-  if ((err = nvs_open(NAMESPACE, NVS_READWRITE, &nvs_handle)) == ESP_OK) {
-    if ((err = nvs_get_u32(nvs_handle, "NEXT_IDX", &next_idx)) != ESP_OK) {
+  nvs_handle_t handle;
+  if ((err = nvs_open(NAMESPACE, NVS_READWRITE, &handle)) == ESP_OK) {
+    if ((err = nvs_get_u32(handle, "NEXT_IDX", &next_idx)) != ESP_OK) {
       if (!erased) {
         if (((err = nvs_flash_erase()) != ESP_OK) ||
             ((err = nvs_flash_init())  != ESP_OK)) {
           LOG_E("NVS Error: %s", esp_err_to_name(err));
         }
         else {
-          nvs_open(NAMESPACE, NVS_READWRITE, &nvs_handle);
+          if ((err = nvs_open(NAMESPACE, NVS_READWRITE, &handle)) != ESP_OK) {
+            LOG_E("Unable to access nvs: %s.", esp_err_to_name(err));
+          }
         }
       }
 
       next_idx = 0;
-      if (((err = nvs_set_u32(nvs_handle, "NEXT_IDX", next_idx)) == ESP_OK) &&
-          ((err =  nvs_commit(nvs_handle)                      ) == ESP_OK)) {
+      if (((err = nvs_set_u32(handle, "NEXT_IDX", next_idx)) == ESP_OK) &&
+          ((err =  nvs_commit(handle)                      ) == ESP_OK)) {
         initialized = true;
      }
       else {
@@ -69,7 +73,7 @@ NVSMgr::setup(bool force_erase)
           if (strncmp(info.key, "ID_", 3) == 0) {
             uint32_t index = atoi(&info.key[3]);
             uint32_t id;
-            if (nvs_get_u32(nvs_handle, info.key, &id) == ESP_OK) {
+            if (nvs_get_u32(handle, info.key, &id) == ESP_OK) {
               track_list[index] = id;
               track_count++;
             }
@@ -82,7 +86,7 @@ NVSMgr::setup(bool force_erase)
         nvs_release_iterator(it);
       }
     }
-    nvs_close(nvs_handle);
+    nvs_close(handle);
   }
   else {
     LOG_E("Unable to access nvs: %s.", esp_err_to_name(err));
@@ -98,21 +102,25 @@ NVSMgr::setup(bool force_erase)
 bool
 NVSMgr::save_location(uint32_t id, const NVSData & nvs_data)
 {
+  std::scoped_lock guard(mutex);
   if (!initialized) return false;
 
   esp_err_t err;
   uint32_t  index;
   bool      result = false;
 
-  if ((err = nvs_open(NAMESPACE, NVS_READWRITE, &nvs_handle)) == ESP_OK) {
+  nvs_handle_t handle;
+  if ((err = nvs_open(NAMESPACE, NVS_READWRITE, &handle)) == ESP_OK) {
     if (find_id(id, index)) {
-      result = update(index, id, nvs_data);
+      result = update(handle, index, id, nvs_data);
     }
     else {
-      result = save(id, nvs_data);
+      result = save(handle, id, nvs_data);
     }
-    nvs_commit(nvs_handle);
-    nvs_close(nvs_handle);
+    if ((err = nvs_commit(handle)) != ESP_OK) {
+      LOG_E("Unable to commit NVS save: %s", esp_err_to_name(err));
+    }
+    nvs_close(handle);
   }
   else {
     LOG_E("Unable to open NVS: %s", esp_err_to_name(err));
@@ -128,6 +136,7 @@ NVSMgr::save_location(uint32_t id, const NVSData & nvs_data)
 bool
 NVSMgr::get_last(uint32_t & id, NVSData & nvs_data)
 {
+  std::scoped_lock guard(mutex);
   if (!initialized) return false;
 
   bool found = false;
@@ -138,9 +147,10 @@ NVSMgr::get_last(uint32_t & id, NVSData & nvs_data)
   if (it != track_list.rend()) {
     id = it->second;
 
-    if ((err = nvs_open(NAMESPACE, NVS_READONLY, &nvs_handle)) == ESP_OK) {
-      found = retrieve(it->first, nvs_data);
-      nvs_close(nvs_handle);
+    nvs_handle_t handle;
+    if ((err = nvs_open(NAMESPACE, NVS_READONLY, &handle)) == ESP_OK) {
+      found = retrieve(handle, it->first, nvs_data);
+      nvs_close(handle);
     }
     else {
       LOG_E("Unable to open NVS: %s", esp_err_to_name(err));
@@ -152,17 +162,19 @@ NVSMgr::get_last(uint32_t & id, NVSData & nvs_data)
 bool
 NVSMgr::get_location(uint32_t id, NVSData & nvs_data)
 {
+  std::scoped_lock guard(mutex);
   if (!initialized) return false;
 
   esp_err_t err;
   uint32_t index;
   bool found = false;
 
-  if ((err = nvs_open(NAMESPACE, NVS_READONLY, &nvs_handle)) == ESP_OK) {
+  nvs_handle_t handle;
+  if ((err = nvs_open(NAMESPACE, NVS_READONLY, &handle)) == ESP_OK) {
     if (find_id(id, index)) {
-      found = retrieve(index, nvs_data);
+      found = retrieve(handle, index, nvs_data);
     }
-    nvs_close(nvs_handle);
+    nvs_close(handle);
   }
   else {
     LOG_E("Unable to open NVS: %s", esp_err_to_name(err));
@@ -174,27 +186,34 @@ NVSMgr::get_location(uint32_t id, NVSData & nvs_data)
 bool
 NVSMgr::erase(uint32_t id ) 
 {
+  std::scoped_lock guard(mutex);
   if (!initialized) return false;
 
   esp_err_t err;
   uint32_t index;
 
-  if ((err = nvs_open(NAMESPACE, NVS_READONLY, &nvs_handle)) == ESP_OK) {
+  nvs_handle_t handle;
+  if ((err = nvs_open(NAMESPACE, NVS_READWRITE, &handle)) == ESP_OK) {
+    bool removed = false;
     if (find_id(id, index)) {
-      remove(index);
-      return true;
+      remove(handle, index);
+      removed = true;
+      if ((err = nvs_commit(handle)) != ESP_OK) {
+        LOG_E("Unable to commit NVS erase: %s", esp_err_to_name(err));
+      }
     }
-    nvs_close(nvs_handle);
+    nvs_close(handle);
+    return removed;
   }
-  else {
-    LOG_E("Unable to open NVS: %s", esp_err_to_name(err));
-  }
+
+  LOG_E("Unable to open NVS: %s", esp_err_to_name(err));
   return false;
 }
 
 bool
 NVSMgr::id_exists(uint32_t id)
 {
+  std::scoped_lock guard(mutex);
   for (auto & e : track_list) {
     if (e.second == id) {
       return true;
@@ -204,12 +223,12 @@ NVSMgr::id_exists(uint32_t id)
 }
 
 bool
-NVSMgr::retrieve(uint32_t index, NVSData & nvs_data)
+NVSMgr::retrieve(nvs_handle_t handle, uint32_t index, NVSData & nvs_data)
 {
   std::string key = bld_key("DATA_", index);
   SavedData   saved_data;
 
-  if (nvs_get_u64(nvs_handle, key.c_str(), &saved_data.data) == ESP_OK) {
+  if (nvs_get_u64(handle, key.c_str(), &saved_data.data) == ESP_OK) {
     nvs_data = saved_data.nvs_data;
     return true;
   }
@@ -218,24 +237,24 @@ NVSMgr::retrieve(uint32_t index, NVSData & nvs_data)
 }
 
 bool
-NVSMgr::save(uint32_t id, const NVSData & nvs_data)
+NVSMgr::save(nvs_handle_t handle, uint32_t id, const NVSData & nvs_data)
 {
   SavedData   saved_data;
   esp_err_t   err;
 
   while (track_count >= 10) {
     TrackList::iterator it = track_list.begin();
-    if (it != track_list.end()) remove(it->first);
+    if (it != track_list.end()) remove(handle, it->first);
   }
 
   saved_data.nvs_data = nvs_data;
   uint32_t      index = next_idx;
   std::string     key = bld_key("ID_", index);
 
-  if ((err = nvs_set_u32(nvs_handle, key.c_str(), id)) == ESP_OK) {
+  if ((err = nvs_set_u32(handle, key.c_str(), id)) == ESP_OK) {
     key = bld_key("DATA_", index);
-    if ((err = nvs_set_u64(nvs_handle, key.c_str(), saved_data.data)) == ESP_OK) {
-      if ((err = nvs_set_u32(nvs_handle, "NEXT_IDX", ++next_idx)) != ESP_OK) {
+    if ((err = nvs_set_u64(handle, key.c_str(), saved_data.data)) == ESP_OK) {
+      if ((err = nvs_set_u32(handle, "NEXT_IDX", ++next_idx)) != ESP_OK) {
         LOG_E("Unable to save new NEXT_IDX: %s", esp_err_to_name(err));
       }
       track_list[index] = id;
@@ -250,7 +269,7 @@ NVSMgr::save(uint32_t id, const NVSData & nvs_data)
     }
     else {
       key = bld_key("ID_", index);
-      nvs_erase_key(nvs_handle, key.c_str());
+      nvs_erase_key(handle, key.c_str());
     }
   }
 
@@ -259,7 +278,7 @@ NVSMgr::save(uint32_t id, const NVSData & nvs_data)
 }
 
 bool
-NVSMgr::update(uint32_t index, uint32_t id, const NVSData & nvs_data)
+NVSMgr::update(nvs_handle_t handle, uint32_t index, uint32_t id, const NVSData & nvs_data)
 {
   TrackList::reverse_iterator rit = track_list.rbegin();
   if ((rit != track_list.rend()) && (index == (rit->first))) {
@@ -267,27 +286,27 @@ NVSMgr::update(uint32_t index, uint32_t id, const NVSData & nvs_data)
     SavedData new_data;
     new_data.nvs_data = nvs_data;
     std::string   key = bld_key("DATA_", index);
-    if ((nvs_get_u64(nvs_handle, key.c_str(), &old_data) == ESP_OK) &&
+    if ((nvs_get_u64(handle, key.c_str(), &old_data) == ESP_OK) &&
         (old_data == new_data.data)) {
       return true;
     }
   }
-  remove(index);
-  return save(id, nvs_data);
+  remove(handle, index);
+  return save(handle, id, nvs_data);
 }
 
 void 
-NVSMgr::remove(uint32_t index)
+NVSMgr::remove(nvs_handle_t handle, uint32_t index)
 {
   if (exists(index)) {
     std::string key = bld_key("ID_", index);
     uint32_t the_id;
-    if (nvs_get_u32(nvs_handle, key.c_str(), &the_id) == ESP_OK) {
+    if (nvs_get_u32(handle, key.c_str(), &the_id) == ESP_OK) {
       books_dir.set_track_order(the_id, -1);
     }
-    nvs_erase_key(nvs_handle, key.c_str());
+    nvs_erase_key(handle, key.c_str());
     key = bld_key("DATA_", index);
-    nvs_erase_key(nvs_handle, key.c_str());
+    nvs_erase_key(handle, key.c_str());
     if (track_count > 0) {
       track_list.erase(index);
       track_count--;
@@ -310,6 +329,7 @@ NVSMgr::find_id(uint32_t id, uint32_t & index)
 
 int8_t NVSMgr::get_pos(uint32_t id)
 {
+  std::scoped_lock guard(mutex);
   int8_t pos = 0;
   bool found = false;
 
@@ -355,9 +375,10 @@ int8_t NVSMgr::get_pos(uint32_t id)
     }
 
     std::cout << NAMESPACE << ":" << std::endl;
-    if (nvs_open(NAMESPACE, NVS_READONLY, &nvs_handle) == ESP_OK) {
+    nvs_handle_t handle;
+    if (nvs_open(NAMESPACE, NVS_READONLY, &handle) == ESP_OK) {
       uint32_t index;
-      if (nvs_get_u32(nvs_handle, "NEXT_IDX", &index) == ESP_OK) {
+      if (nvs_get_u32(handle, "NEXT_IDX", &index) == ESP_OK) {
         std::cout << "  NEXT_IDX: " << index << std::endl;
       }
 
@@ -370,14 +391,14 @@ int8_t NVSMgr::get_pos(uint32_t id)
                     rit++) {
         std::string key = bld_key("ID_", rit->first);
         uint32_t    id;
-        if (nvs_get_u32(nvs_handle, key.c_str(), &id) == ESP_OK) {
+        if (nvs_get_u32(handle, key.c_str(), &id) == ESP_OK) {
           std::cout << "  " << key << ": " << rit->second << std::endl;
           if (id != rit->second) {
             LOG_E("THE IS IS NOT CONFORM (%d vs %d)", id, rit->second);
           }
         }
         key = bld_key("DATA_", rit->first);
-        if (nvs_get_u64(nvs_handle, key.c_str(), &s_data.data) == ESP_OK) {
+        if (nvs_get_u64(handle, key.c_str(), &s_data.data) == ESP_OK) {
           std::cout << "  " << key << ": offset: "
                     << s_data.nvs_data.offset
                     << " itemref_index: " 
@@ -386,6 +407,7 @@ int8_t NVSMgr::get_pos(uint32_t id)
                     << +s_data.nvs_data.was_shown << std::endl;
         }
       }
+      nvs_close(handle);
     }
     std::cout << "===== END NVS =====" << std::endl;
   }

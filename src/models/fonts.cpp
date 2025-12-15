@@ -230,6 +230,10 @@ Fonts::~Fonts()
   for (auto & entry : font_cache) {
     delete entry.font;
   }
+  for (auto * f : retired_fonts) {
+    delete f;
+  }
+  retired_fonts.clear();
   font_cache.clear();
 }
 
@@ -269,6 +273,15 @@ Fonts::clear_everything()
 void
 Fonts::adjust_default_font(uint8_t font_index)
 {
+  if (font_index >= font_count) {
+    LOG_E("adjust_default_font: invalid font index %u (count=%u)", (unsigned)font_index, (unsigned)font_count);
+    return;
+  }
+  if (font_cache.size() <= 6) {
+    LOG_E("adjust_default_font: font cache not initialized (size=%u)", (unsigned)font_cache.size());
+    return;
+  }
+
   if (font_cache.at(3).name.compare(font_names[font_index]) != 0) {
     std::string normal      = std::string(FONTS_FOLDER "/").append(    regular_fname[font_index]);
     std::string bold        = std::string(FONTS_FOLDER "/").append(       bold_fname[font_index]);
@@ -315,6 +328,11 @@ Fonts::replace(int16_t             index,
                const std::string & filename)
 {
   std::scoped_lock guard(mutex);
+
+  if ((index < 0) || (static_cast<size_t>(index) >= font_cache.size())) {
+    LOG_E("Font replace: invalid cache index %d (size=%u)", (int)index, (unsigned)font_cache.size());
+    return false;
+  }
   
   FontEntry f;
   if ((f.font = FontFactory::create(filename))) {
@@ -322,7 +340,7 @@ Fonts::replace(int16_t             index,
       f.name  = name;
       f.style = style;
       f.font->set_fonts_cache_index(index);
-      delete font_cache.at(index).font;
+      retired_fonts.push_back(font_cache.at(index).font);
       font_cache.at(index) = f;
 
       LOG_D("Font %s (%s) replacement at index %d and style %d.",

@@ -140,7 +140,7 @@ TTF::get_glyph_internal(uint32_t charcode, int16_t glyph_size)
     int32_t size = glyph->pitch * glyph->dim.height;
 
     if (size > 0) {
-      glyph->buffer = byte_pool_alloc(size);
+      glyph->buffer = byte_pool_alloc((uint32_t)size);
 
       if (glyph->buffer == nullptr) {
         LOG_E("Unable to allocate memory for glyph.");

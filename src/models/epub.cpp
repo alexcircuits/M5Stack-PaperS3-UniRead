@@ -526,6 +526,11 @@ EPub::load_font(const std::string      filename,
           else {
             decrypt(buffer, size, obf_type);
 
+            if (size >= 4 && (memcmp(buffer, "wOFF", 4) == 0 || memcmp(buffer, "wOF2", 4) == 0)) {
+              free(buffer);
+              return false;
+            }
+
             if (fonts.add(font_family, style, buffer, size, filename)) {
               fonts_size += size;
               return true;
@@ -542,6 +547,10 @@ EPub::load_font(const std::string      filename,
           LOG_E("Unable to retrieve font file: %s", filename.c_str());
         }
         else {
+          if (size >= 4 && (memcmp(buffer, "wOFF", 4) == 0 || memcmp(buffer, "wOF2", 4) == 0)) {
+            free(buffer);
+            return false;
+          }
           if (fonts.add(font_family, style, buffer, size, filename)) {
             fonts_size += size;
             return true;
