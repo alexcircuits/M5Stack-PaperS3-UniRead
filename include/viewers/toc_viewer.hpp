@@ -12,12 +12,20 @@ class TocViewer
 
     static const int16_t TITLE_FONT            =   1;
     static const int16_t ENTRY_FONT            =   1;
-    static const int16_t ENTRY_FONT_SIZE       =  11;
-    static const int16_t TITLE_FONT_SIZE       =  14;
+    #if defined(BOARD_TYPE_PAPER_S3)
+      static const int16_t ENTRY_FONT_SIZE       =  14;
+      static const int16_t TITLE_FONT_SIZE       =  16;
+    #else
+      static const int16_t ENTRY_FONT_SIZE       =  11;
+      static const int16_t TITLE_FONT_SIZE       =  14;
+    #endif
     static const int16_t MAX_TITLE_SIZE        =  90;
     static const int16_t TITLE_YPOS            =  20;
 
-    #if INKPLATE_6PLUS
+    #if defined(BOARD_TYPE_PAPER_S3)
+      static const int16_t ENTRY_HEIGHT        =  88;
+      static const int16_t FIRST_ENTRY_YPOS    = 140;
+    #elif INKPLATE_6PLUS
       static const int16_t ENTRY_HEIGHT        =  40;
       static const int16_t FIRST_ENTRY_YPOS    = 100;
     #else
@@ -52,8 +60,10 @@ class TocViewer
     int16_t prev_column();
 
     int16_t get_index_at(uint16_t x, uint16_t y) {
-      int16_t idx = (y - FIRST_ENTRY_YPOS) / ENTRY_HEIGHT;
-      return (idx >= entries_per_page) ? -1 : (current_page_nbr * entries_per_page) + idx;
+      (void)x;
+      if (y < FIRST_ENTRY_YPOS) return -1;
+      int16_t idx = (int16_t)((y - FIRST_ENTRY_YPOS) / ENTRY_HEIGHT);
+      return ((idx < 0) || (idx >= entries_per_page)) ? -1 : (current_page_nbr * entries_per_page) + idx;
     }
 };
 

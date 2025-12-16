@@ -86,6 +86,18 @@ TocViewer::show_page(int16_t page_nbr, int16_t hightlight_screen_idx)
   fmt.font_style    = Fonts::FaceStyle::NORMAL;
   fmt.align         = CSS::Align::LEFT;
 
+  #if defined(BOARD_TYPE_PAPER_S3)
+    int16_t entry_pad_y = 0;
+    {
+      Font * entry_font = fonts.get(ENTRY_FONT);
+      if (entry_font != nullptr) {
+        const int16_t entry_line_h = (int16_t)(entry_font->get_line_height(ENTRY_FONT_SIZE) * fmt.line_height_factor);
+        entry_pad_y = (int16_t)((ENTRY_HEIGHT - entry_line_h) >> 1);
+        if (entry_pad_y < 0) entry_pad_y = 0;
+      }
+    }
+  #endif
+
   for (int16_t screen_idx = 0; entry_idx < last_idx; screen_idx++, entry_idx++) {
 
     const TOC::EntryRecord & entry = toc.get_entry(entry_idx);
@@ -98,8 +110,13 @@ TocViewer::show_page(int16_t page_nbr, int16_t hightlight_screen_idx)
     #endif
 
     fmt.screen_left   = 20 + (entry.level * 20);
-    fmt.screen_top    = ypos,
-    fmt.screen_bottom = (int16_t)(Screen::get_height() - (ypos + ENTRY_HEIGHT)),
+
+    #if defined(BOARD_TYPE_PAPER_S3)
+      fmt.screen_top = (int16_t)(ypos + entry_pad_y);
+    #else
+      fmt.screen_top = ypos;
+    #endif
+    fmt.screen_bottom = (int16_t)(Screen::get_height() - (ypos + ENTRY_HEIGHT));
 
     page.set_limits(fmt);
     page.new_paragraph(fmt);
@@ -119,6 +136,18 @@ TocViewer::highlight(int16_t screen_idx)
 {
   #if !(INKPLATE_6PLUS || TOUCH_TRIAL)
   page.set_compute_mode(Page::ComputeMode::DISPLAY);
+
+  #if defined(BOARD_TYPE_PAPER_S3)
+    int16_t entry_pad_y = 0;
+    {
+      Font * entry_font = fonts.get(ENTRY_FONT);
+      if (entry_font != nullptr) {
+        const int16_t entry_line_h = (int16_t)(entry_font->get_line_height(ENTRY_FONT_SIZE) * 0.8f);
+        entry_pad_y = (int16_t)((ENTRY_HEIGHT - entry_line_h) >> 1);
+        if (entry_pad_y < 0) entry_pad_y = 0;
+      }
+    }
+  #endif
 
   if (current_screen_idx != screen_idx) {
 
@@ -157,6 +186,11 @@ TocViewer::highlight(int16_t screen_idx)
 
     page.start(fmt);
 
+    #if defined(BOARD_TYPE_PAPER_S3)
+      fmt.screen_top    = (int16_t)(ypos + entry_pad_y);
+      fmt.screen_bottom = (int16_t)(Screen::get_height() - (ypos + ENTRY_HEIGHT));
+    #endif
+
     page.clear_highlight(
       Dim(Screen::get_width() - 30, ENTRY_HEIGHT + 5),
       Pos(15, ypos));
@@ -180,7 +214,12 @@ TocViewer::highlight(int16_t screen_idx)
       Pos(15, ypos));
 
     fmt.screen_left = 20 + (entry2.level * 20);
-    fmt.screen_top  = ypos;
+    #if defined(BOARD_TYPE_PAPER_S3)
+      fmt.screen_top    = (int16_t)(ypos + entry_pad_y);
+      fmt.screen_bottom = (int16_t)(Screen::get_height() - (ypos + ENTRY_HEIGHT));
+    #else
+      fmt.screen_top  = ypos;
+    #endif
 
     page.set_limits(fmt);
     page.new_paragraph(fmt);
