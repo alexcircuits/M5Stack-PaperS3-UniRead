@@ -8,6 +8,8 @@
 
 #include "controllers/event_mgr.hpp"
 #include "controllers/app_controller.hpp"
+#include "controllers/common_actions.hpp"
+#include "models/config.hpp"
 #include "screen.hpp"
 
 #if EPUB_INKPLATE_BUILD
@@ -16,6 +18,8 @@
   #include "freertos/queue.h"
   #include "driver/i2c_master.h"
   #include "esp_log.h"
+  #include "inkplate_platform.hpp"
+  #include "esp.hpp"
 #endif
 
 EventMgr event_mgr;
@@ -343,12 +347,35 @@ bool EventMgr::setup()
 void EventMgr::loop()
 {
 #if EPUB_INKPLATE_BUILD
+  static uint32_t last_activity_ms = 0;
+  if (last_activity_ms == 0) {
+    last_activity_ms = (uint32_t)ESP::millis();
+  }
+
   while (true) {
     const Event & event = get_event();
 
     if (event.kind != EventKind::NONE) {
+      last_activity_ms = (uint32_t)ESP::millis();
       app_controller.input_event(event);
       return;
+    }
+
+    if (!stay_on) {
+      int8_t timeout_minutes = 0;
+      config.get(Config::Ident::TIMEOUT, &timeout_minutes);
+      if (timeout_minutes <= 0) {
+        continue;
+      }
+
+      const uint32_t now_ms = (uint32_t)ESP::millis();
+      const uint32_t timeout_ms = (uint32_t)timeout_minutes * 60U * 1000U;
+      if ((now_ms - last_activity_ms) >= timeout_ms) {
+        app_controller.going_to_deep_sleep();
+        CommonActions::render_sleep_screen();
+        ESP::delay(1000);
+        inkplate_platform.deep_sleep((gpio_num_t)0, 0);
+      }
     }
   }
 #else
@@ -358,7 +385,7 @@ void EventMgr::loop()
 
 const EventMgr::Event & EventMgr::get_event()
 {
-  static Event event{ EventKind::NONE };
+  static Event event{ EventKind::NONE, 0, 0, 0 };
 
 #if EPUB_INKPLATE_BUILD
   if (input_event_queue == nullptr) {
@@ -367,7 +394,7 @@ const EventMgr::Event & EventMgr::get_event()
     return event;
   }
 
-  if (!xQueueReceive(input_event_queue, &event, portMAX_DELAY)) {
+  if (!xQueueReceive(input_event_queue, &event, pdMS_TO_TICKS(1000))) {
     event.kind = EventKind::NONE;
   }
 #endif

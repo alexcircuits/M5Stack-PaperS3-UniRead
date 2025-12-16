@@ -5,6 +5,8 @@
 #define __FORM_VIEWER__ 1
 #include "viewers/form_viewer.hpp"
 
+ #include "screen.hpp"
+
 MemoryPool<FormChoiceField::Item> FormChoiceField::item_pool;
 uint8_t FormChoiceField::font_choices_count = 0;
 
@@ -23,6 +25,9 @@ FormChoice FormChoiceField::font_choices[8] = {
   bool 
   FormDone::event(const EventMgr::Event & event) 
   { 
+  #if defined(BOARD_TYPE_PAPER_S3)
+    screen.force_full_update();
+  #endif
     form_viewer.set_completed(true); 
     return false; 
   }

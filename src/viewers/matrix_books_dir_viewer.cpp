@@ -170,7 +170,12 @@ MatrixBooksDirViewer::show_page(int16_t page_nbr, int16_t hightlight_item_idx)
       if ((dst_w != src_w) || (dst_h != src_h)) {
         const int32_t sz = (int32_t)dst_w * (int32_t)dst_h;
         uint8_t * scaled = new uint8_t[sz];
-        stbir_resize_uint8(src, src_w, src_h, 0, scaled, dst_w, dst_h, 0, 1);
+        stbir_resize_uint8_generic(
+          src,    (int)src_w, (int)src_h, 0,
+          scaled, (int)dst_w, (int)dst_h, 0,
+          1, -1, 0,
+          STBIR_EDGE_CLAMP, STBIR_FILTER_CATMULLROM, STBIR_COLORSPACE_LINEAR,
+          nullptr);
         Image::ImageData image(Dim(dst_w, dst_h), scaled);
         page.put_image(image, img_pos);
         delete [] scaled;

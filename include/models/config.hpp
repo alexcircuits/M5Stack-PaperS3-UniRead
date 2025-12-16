@@ -10,7 +10,7 @@
 enum class ConfigIdent { 
   VERSION, SSID, PWD, PORT, BATTERY, FONT_SIZE, TIMEOUT, ORIENTATION, 
   USE_FONTS_IN_BOOKS, DEFAULT_FONT, SHOW_IMAGES, PIXEL_RESOLUTION, SHOW_HEAP, 
-  SHOW_TITLE, FRONT_LIGHT, DIR_VIEW,
+  SHOW_TITLE, FRONT_LIGHT, DIR_VIEW, SLEEP_SCREEN,
   #if DATE_TIME_RTC
     SHOW_RTC,
     NTP_SERVER,
@@ -23,15 +23,15 @@ enum class ConfigIdent {
 
 #if INKPLATE_6PLUS
   #if DATE_TIME_RTC
-    typedef ConfigBase<ConfigIdent, 26> Config;
+    typedef ConfigBase<ConfigIdent, 27> Config;
   #else
-    typedef ConfigBase<ConfigIdent, 23> Config;
+    typedef ConfigBase<ConfigIdent, 24> Config;
   #endif
 #else
   #if DATE_TIME_RTC
-    typedef ConfigBase<ConfigIdent, 19> Config;
+    typedef ConfigBase<ConfigIdent, 20> Config;
   #else
-    typedef ConfigBase<ConfigIdent, 16> Config;
+    typedef ConfigBase<ConfigIdent, 17> Config;
   #endif
 #endif
 
@@ -56,6 +56,7 @@ enum class ConfigIdent {
   static int8_t   show_title;
   static int8_t   front_light;
   static int8_t   dir_view;
+  static int8_t   sleep_screen;
 
   #if DATE_TIME_RTC
     static int8_t show_rtc;
@@ -80,6 +81,7 @@ enum class ConfigIdent {
   static const int8_t   default_show_title         =  1;
   static const int8_t   default_front_light        = 15;  // value between 0 and 63
   static const int8_t   default_dir_view           =  0;  // 0 = linear view, 1 = matrix view
+  static const int8_t   default_sleep_screen       =  0;
   static const int8_t   the_version                =  1;
 
   static const int8_t   default_show_rtc           =  0;
@@ -104,6 +106,7 @@ enum class ConfigIdent {
     { Config::Ident::SHOW_TITLE,         Config::EntryType::BYTE,   "show_title",         &show_title,         &default_show_title,         0 },
     { Config::Ident::FRONT_LIGHT,        Config::EntryType::BYTE,   "front_light",        &front_light,        &default_front_light,        0 },
     { Config::Ident::DIR_VIEW,           Config::EntryType::BYTE,   "dir_view",           &dir_view,           &default_dir_view,           0 },
+    { Config::Ident::SLEEP_SCREEN,       Config::EntryType::BYTE,   "sleep_screen",       &sleep_screen,       &default_sleep_screen,       0 },
 
     #if DATE_TIME_RTC
     { Config::Ident::SHOW_RTC,           Config::EntryType::BYTE,   "show_rtc",           &show_rtc,           &default_show_rtc,           0 },

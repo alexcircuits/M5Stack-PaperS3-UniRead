@@ -29,6 +29,7 @@ static Screen::PixelResolution  resolution;
 
 static int8_t show_battery;
 static int8_t timeout;
+static int8_t sleep_screen;
 static int8_t show_images;
 static int8_t font_size;
 static int8_t use_fonts_in_books;
@@ -45,6 +46,7 @@ static int8_t old_use_fonts_in_books;
 static int8_t old_default_font;
 static int8_t old_show_title;
 static int8_t old_dir_view;
+static int8_t old_sleep_screen;
 
 #if DATE_TIME_RTC
   static int8_t show_heap_or_rtc;
@@ -57,15 +59,16 @@ static int8_t old_dir_view;
 #if defined(BOARD_TYPE_PAPER_S3)
   // On Paper S3 the display is always driven in 4-bit grayscale via epdiy,
   // so the Pixel Resolution setting is not exposed in the UI.
-  static constexpr int8_t MAIN_FORM_SIZE = 7;
-#elif INKPLATE_6PLUS || TOUCH_TRIAL
   static constexpr int8_t MAIN_FORM_SIZE = 8;
+#elif INKPLATE_6PLUS || TOUCH_TRIAL
+  static constexpr int8_t MAIN_FORM_SIZE = 9;
 #else
-  static constexpr int8_t MAIN_FORM_SIZE = 7;
+  static constexpr int8_t MAIN_FORM_SIZE = 8;
 #endif
 
 static FormEntry main_params_form_entries[MAIN_FORM_SIZE] = {
   { .caption = "Minutes Before Sleeping :",  .u = { .ch = { .value = &timeout,                .choice_count = 3, .choices = FormChoiceField::timeout_choices        } }, .entry_type = FormEntryType::HORIZONTAL  },
+  { .caption = "Sleep Screen :",            .u = { .ch = { .value = &sleep_screen,           .choice_count = 2, .choices = FormChoiceField::sleep_screen_choices   } }, .entry_type = FormEntryType::HORIZONTAL  },
   { .caption = "Books Directory View :",     .u = { .ch = { .value = &dir_view,               .choice_count = 2, .choices = FormChoiceField::dir_view_choices       } }, .entry_type = FormEntryType::HORIZONTAL  },
   #if INKPLATE_6PLUS || TOUCH_TRIAL
     { .caption = "uSDCard Position (*):",    .u = { .ch = { .value = (int8_t *) &orientation, .choice_count = 4, .choices = FormChoiceField::orientation_choices    } }, .entry_type = FormEntryType::VERTICAL    },
@@ -137,6 +140,7 @@ main_parameters()
   config.get(Config::Ident::BATTERY,          &show_battery          );
   config.get(Config::Ident::SHOW_TITLE,       &show_title            );
   config.get(Config::Ident::TIMEOUT,          &timeout               );
+  config.get(Config::Ident::SLEEP_SCREEN,     &sleep_screen          );
 
   #if DATE_TIME_RTC
     int8_t show_heap, show_rtc;
@@ -154,6 +158,7 @@ main_parameters()
     old_resolution  = resolution;
   #endif
   old_show_title  = show_title;
+  old_sleep_screen = sleep_screen;
   done            = 1;
 
   form_viewer.show(
@@ -428,6 +433,7 @@ OptionController::input_event(const EventMgr::Event & event)
         config.put(Config::Ident::BATTERY,          show_battery        );
         config.put(Config::Ident::SHOW_TITLE,       show_title          );
         config.put(Config::Ident::TIMEOUT,          timeout             );
+        config.put(Config::Ident::SLEEP_SCREEN,     sleep_screen        );
 
         #if DATE_TIME_RTC
           config.put(Config::Ident::SHOW_HEAP,      (int8_t)(show_heap_or_rtc == 2 ? 1 : 0));
@@ -469,7 +475,11 @@ OptionController::input_event(const EventMgr::Event & event)
           menu_viewer.show(menu, 2, true);
         }
         else {
-          menu_viewer.clear_highlight();
+          #if defined(BOARD_TYPE_PAPER_S3)
+            menu_viewer.show(menu, 2, true);
+          #else
+            menu_viewer.clear_highlight();
+          #endif
         }
       // }
     }
@@ -502,7 +512,11 @@ OptionController::input_event(const EventMgr::Event & event)
           }
         }
       // }
-      menu_viewer.clear_highlight();
+      #if defined(BOARD_TYPE_PAPER_S3)
+        menu_viewer.show(menu, 3, true);
+      #else
+        menu_viewer.clear_highlight();
+      #endif
     }
   }
 
@@ -510,7 +524,11 @@ OptionController::input_event(const EventMgr::Event & event)
     else if (date_time_form_is_shown) {
       if (form_viewer.event(event)) {
         date_time_form_is_shown = false;
-        menu_viewer.clear_highlight();
+        #if defined(BOARD_TYPE_PAPER_S3)
+          menu_viewer.show(menu, 7, true);
+        #else
+          menu_viewer.clear_highlight();
+        #endif
         set_clock();
       }
     }

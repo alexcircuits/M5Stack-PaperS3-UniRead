@@ -12,6 +12,8 @@
 #include "driver/sdspi_host.h"
 #include "driver/spi_common.h"
 #include "sdmmc_cmd.h"
+#include "driver/gpio.h"
+#include "esp_sleep.h"
 
 InkPlatePlatform InkPlatePlatform::singleton;
 InkPlatePlatform & inkplate_platform = InkPlatePlatform::get_singleton();
@@ -79,11 +81,17 @@ bool InkPlatePlatform::light_sleep(uint32_t minutes_to_sleep, gpio_num_t gpio_nu
 
 void InkPlatePlatform::deep_sleep(gpio_num_t gpio_num, int level)
 {
-  // TODO: Implement proper deep sleep configuration. For now,
-  // just log and return so we can keep debugging.
+  // Wake is via the power button on Paper S3, so we intentionally do not
+  // configure any GPIO wake source here (touch must not wake the device).
   (void)gpio_num;
   (void)level;
-  LOG_I("Paper S3 deep_sleep stub; not sleeping (gpio=%d, level=%d)", (int)gpio_num, level);
+
+  LOG_I("Paper S3 entering deep sleep (power button wake)");
+
+  esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_ALL);
+
+  // Deep sleep should not return.
+  esp_deep_sleep_start();
 }
 
 #endif // BOARD_TYPE_PAPER_S3

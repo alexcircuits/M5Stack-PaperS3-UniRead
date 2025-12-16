@@ -18,5 +18,6 @@ class CommonActions
     static void refresh_books_dir();
     static void show_last_book();
     static void about();
+    static void render_sleep_screen();
     static void power_it_off();
 };

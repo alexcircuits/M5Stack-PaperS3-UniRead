@@ -11,6 +11,7 @@
 
 #if defined(BOARD_TYPE_PAPER_S3)
   #include <JPEGDEC.h>
+  #include <cstdio>
 #else
   #include "tjpgdec.hpp"
 #endif
@@ -21,6 +22,52 @@ static bool      waiting_msg_shown;
 // static bool first = false;
 
 #if defined(BOARD_TYPE_PAPER_S3)
+
+static char * load_file_bytes(const char * path, uint32_t & out_size)
+{
+  out_size = 0;
+
+  if (path == nullptr) {
+    return nullptr;
+  }
+
+  FILE * f = fopen(path, "rb");
+  if (f == nullptr) {
+    return nullptr;
+  }
+
+  if (fseek(f, 0, SEEK_END) != 0) {
+    fclose(f);
+    return nullptr;
+  }
+
+  const long sz = ftell(f);
+  if (sz <= 0) {
+    fclose(f);
+    return nullptr;
+  }
+
+  if (fseek(f, 0, SEEK_SET) != 0) {
+    fclose(f);
+    return nullptr;
+  }
+
+  char * data = (char *)malloc((size_t)sz);
+  if (data == nullptr) {
+    fclose(f);
+    return nullptr;
+  }
+
+  const size_t read_sz = fread(data, 1, (size_t)sz, f);
+  fclose(f);
+  if (read_sz != (size_t)sz) {
+    free(data);
+    return nullptr;
+  }
+
+  out_size = (uint32_t)sz;
+  return data;
+}
 
 struct JpegDecCtx {
   Image::ImageData * image_data;
@@ -162,9 +209,15 @@ JPegImage::JPegImage(std::string filename, Dim max, bool load_bitmap) : Image(fi
 
 #if defined(BOARD_TYPE_PAPER_S3)
   uint32_t jpg_size = 0;
-  char * jpg_data = unzip.get_file(filename.c_str(), jpg_size);
+  char * jpg_data = nullptr;
+  if (!filename.empty() && filename[0] == '/') {
+    jpg_data = load_file_bytes(filename.c_str(), jpg_size);
+  }
+  else {
+    jpg_data = unzip.get_file(filename.c_str(), jpg_size);
+  }
   if (jpg_data == nullptr || jpg_size == 0) {
-    LOG_E("Unable to load JPEG from EPUB: %s", filename.c_str());
+    LOG_E("Unable to load JPEG: %s", filename.c_str());
     return;
   }
 

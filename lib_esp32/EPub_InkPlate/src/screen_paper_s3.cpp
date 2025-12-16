@@ -11,6 +11,11 @@ extern "C" {
 
 #include <FastEPD.h>
 
+#if defined(PAPER_S3_GRAYSCALE_TEST)
+  #include "freertos/FreeRTOS.h"
+  #include "freertos/task.h"
+#endif
+
 // Board definition implemented in PaperS3Support/EpdiyPaperS3Board.c
 extern "C" {
   extern const EpdBoardDefinition paper_s3_board;
@@ -32,6 +37,45 @@ static int16_t s_partial_count = 0;
 static const int16_t PARTIAL_COUNT_ALLOWED = 10;
 static int s_temperature = 20; // TODO: hook real temperature sensor
 
+#if defined(PAPER_S3_GRAYSCALE_TEST)
+static void paper_s3_draw_grayscale_test(bool flipped)
+{
+  const int w = (int)s_epd.width();
+  const int h = (int)s_epd.height();
+  if (w <= 0 || h <= 0) return;
+
+  const int footer_h = 50;
+  const int bar_h = h - footer_h;
+  const int bar_w = (w / 16);
+
+  s_epd.fillScreen(0x0F);
+  s_epd.setFont(FONT_12x16);
+
+  for (int i = 0; i < 16; ++i) {
+    const int x = i * bar_w;
+    const int level = flipped ? (15 - i) : i;
+    s_epd.fillRect(x, 0, bar_w, bar_h, (uint8_t)level);
+
+    char buf[3];
+    snprintf(buf, sizeof(buf), "%d", level);
+    s_epd.setTextColor(level);
+    s_epd.drawString(buf, x + (bar_w / 4), h - footer_h + 10);
+  }
+
+  s_epd.fullUpdate(CLEAR_FAST, true, nullptr);
+}
+
+static void paper_s3_grayscale_test_loop(void)
+{
+  bool flipped = false;
+  while (1) {
+    paper_s3_draw_grayscale_test(flipped);
+    flipped = !flipped;
+    vTaskDelay(5000 / portTICK_PERIOD_MS);
+  }
+}
+#endif
+
 Screen Screen::singleton;
 
 uint16_t Screen::width  = EPD_WIDTH;
@@ -47,26 +91,28 @@ void Screen::update(bool no_full)
 {
   if (!s_epd_initialized) return;
 
+  // FastEPD's partialUpdate currently only supports 1-bpp.
+  // In 4-bpp mode (Paper S3 grayscale), repeatedly doing updates with CLEAR_NONE
+  // tends to accumulate ghosting and reduces contrast, which makes text/lines
+  // look fuzzy. Prefer quality-first clears.
+  (void)no_full;
+
+  int clear_mode;
   if (s_force_full) {
-    s_epd.fullUpdate(CLEAR_FAST, true, nullptr);
+    clear_mode = CLEAR_SLOW;
     s_force_full = false;
     s_partial_count = PARTIAL_COUNT_ALLOWED;
-    return;
   }
-
-  if (no_full) {
-    s_epd.fullUpdate(CLEAR_NONE, true, nullptr);
-    s_partial_count = 0;
-    return;
-  }
-
-  if (s_partial_count <= 0) {
-    s_epd.fullUpdate(CLEAR_FAST, true, nullptr);
+  else if (s_partial_count <= 0) {
+    clear_mode = CLEAR_SLOW;
     s_partial_count = PARTIAL_COUNT_ALLOWED;
-  } else {
-    s_epd.fullUpdate(CLEAR_NONE, true, nullptr);
+  }
+  else {
+    clear_mode = CLEAR_FAST;
     s_partial_count--;
   }
+
+  s_epd.fullUpdate(clear_mode, true, nullptr);
 }
 
 void Screen::force_full_update()
@@ -84,6 +130,9 @@ void Screen::setup(PixelResolution resolution, Orientation orientation)
     }
 
     s_epd.setMode(BB_MODE_4BPP);
+    // Increase the number of drive passes to reduce ghosting and improve
+    // contrast (at the cost of slower updates).
+    s_epd.setPasses(4, 9);
     s_epd.setRotation(90);
     s_framebuffer = s_epd.currentBuffer();
 
@@ -93,6 +142,10 @@ void Screen::setup(PixelResolution resolution, Orientation orientation)
     s_force_full = false;
     s_partial_count = PARTIAL_COUNT_ALLOWED;
   }
+
+#if defined(PAPER_S3_GRAYSCALE_TEST)
+  paper_s3_grayscale_test_loop();
+#endif
 
   // On Paper S3 we always drive the panel in grayscale (4-bit via epdiy).
   // Ignore the stored pixel resolution setting and force the non-ONE_BIT
@@ -134,10 +187,44 @@ static inline uint8_t gray8_to_nibble(uint8_t v)
   return (uint8_t)(v >> 4);
 }
 
+static inline uint8_t dither4_threshold(uint16_t x, uint16_t y)
+{
+  static const uint8_t bayer4x4[16] = {
+    0,  8,  2, 10,
+    12, 4, 14, 6,
+    3, 11, 1,  9,
+    15, 7, 13, 5
+  };
+  return bayer4x4[(uint8_t)((x & 3U) | ((y & 3U) << 2U))];
+}
+
+static inline uint8_t gray8_to_nibble_dither(uint8_t v, uint16_t x, uint16_t y)
+{
+  uint8_t base = (uint8_t)(v >> 4);
+  const uint8_t frac = (uint8_t)(v & 0x0F);
+  const uint8_t t = dither4_threshold(x, y);
+  if (base < 15 && frac > t) {
+    base++;
+  }
+  return base;
+}
+
 static inline uint8_t alpha8_to_nibble(uint8_t a)
 {
   // Alpha 0 (transparent) .. 255 (opaque) => 15..0 (white..black)
   return (uint8_t)(15 - (a >> 4));
+}
+
+static inline uint8_t alpha8_to_nibble_dither(uint8_t a, uint16_t x, uint16_t y)
+{
+  // Convert alpha to an 'ink level' (0..15) then dither before mapping to nibble.
+  uint8_t ink = (uint8_t)(a >> 4);
+  const uint8_t frac = (uint8_t)(a & 0x0F);
+  const uint8_t t = dither4_threshold(x, y);
+  if (ink < 15 && frac > t) {
+    ink++;
+  }
+  return (uint8_t)(15 - ink);
 }
 
 static inline uint8_t gray3_to_nibble(uint8_t v)
@@ -152,9 +239,9 @@ static inline void set_pixel_nibble_physical(uint16_t x, uint16_t y, uint8_t nib
   // x: 0..EPD_WIDTH-1 (960), y: 0..EPD_HEIGHT-1 (540)
   uint8_t * buf_ptr = &s_framebuffer[y * (EPD_WIDTH / 2) + (x >> 1)];
   if (x & 1) {
-    *buf_ptr = (uint8_t)((*buf_ptr & 0x0F) | ((nibble & 0x0F) << 4));
-  } else {
     *buf_ptr = (uint8_t)((*buf_ptr & 0xF0) | (nibble & 0x0F));
+  } else {
+    *buf_ptr = (uint8_t)((*buf_ptr & 0x0F) | ((nibble & 0x0F) << 4));
   }
 }
 
@@ -190,7 +277,7 @@ void Screen::draw_bitmap(const unsigned char * bitmap_data, Dim dim, Pos pos)
       const int32_t sy = y - y0;
       const uint32_t p = (uint32_t)sy * (uint32_t)dim.width + (uint32_t)sx;
       const uint8_t v = bitmap_data[p];
-      set_pixel_nibble_screen((uint16_t)x, (uint16_t)y, gray8_to_nibble(v));
+      set_pixel_nibble_screen((uint16_t)x, (uint16_t)y, gray8_to_nibble_dither(v, (uint16_t)x, (uint16_t)y));
     }
   }
 }
@@ -217,6 +304,8 @@ void Screen::draw_glyph(const unsigned char * bitmap_data, Dim dim, Pos pos, uin
       const int32_t sy = y - y0;
       const uint8_t a = bitmap_data[(uint32_t)sy * (uint32_t)pitch + (uint32_t)sx];
       if (!a) continue;
+      // Avoid dithering for glyphs: ordered patterns on text edges can read as
+      // "fuzz". Keep grayscale anti-aliasing stable.
       const uint8_t nib = alpha8_to_nibble(a);
       if (nib == 0x0F) continue;
       set_pixel_nibble_screen((uint16_t)x, (uint16_t)y, nib);

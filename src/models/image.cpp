@@ -19,9 +19,12 @@ Image::resize(Dim new_dim)
   if (image_data.bitmap != nullptr) {
     uint8_t * resized_bitmap = (uint8_t *) allocate(new_dim.width * new_dim.height);
 
-    stbir_resize_uint8(image_data.bitmap, image_data.dim.width, image_data.dim.height, 0,
-                       resized_bitmap,    new_dim.width,        new_dim.height,        0,
-                       1);    
+    stbir_resize_uint8_generic(
+      image_data.bitmap, (int)image_data.dim.width, (int)image_data.dim.height, 0,
+      resized_bitmap,    (int)new_dim.width,        (int)new_dim.height,        0,
+      1, -1, 0,
+      STBIR_EDGE_CLAMP, STBIR_FILTER_CATMULLROM, STBIR_COLORSPACE_LINEAR,
+      nullptr);
 
     free(image_data.bitmap);
 
