@@ -7,6 +7,7 @@ extern "C" {
   #include <epdiy.h>
   #include <epd_highlevel.h>
   #include <epd_display.h>
+  #include "driver/temperature_sensor.h"
 }
 
 // Board definition implemented in PaperS3Support/EpdiyPaperS3Board.c
@@ -28,7 +29,9 @@ static uint8_t *s_framebuffer = nullptr;
 static bool s_force_full = true;
 static int16_t s_partial_count = 0;
 static const int16_t PARTIAL_COUNT_ALLOWED = 10;
-static int s_temperature = 20; // TODO: hook real temperature sensor
+
+static int s_temperature = 25; // Default ambient
+static temperature_sensor_handle_t temp_sensor = NULL;
 
 Screen Screen::singleton;
 
@@ -53,12 +56,26 @@ void Screen::update(bool no_full)
   }
 
   if (no_full) {
+    // Update temperature reading occasionally (e.g. every update)
+    // or just rely on the last read. Let's read it if we can.
+    if (temp_sensor) {
+       float tsens_out;
+       if (temperature_sensor_get_celsius(temp_sensor, &tsens_out) == ESP_OK) {
+         s_temperature = (int)tsens_out;
+       }
+    }
     epd_hl_update_screen(&s_hl, MODE_GL16, s_temperature);
     s_partial_count = 0;
     return;
   }
 
   if (s_partial_count <= 0) {
+    if (temp_sensor) {
+       float tsens_out;
+       if (temperature_sensor_get_celsius(temp_sensor, &tsens_out) == ESP_OK) {
+         s_temperature = (int)tsens_out;
+       }
+    }
     epd_hl_update_screen(&s_hl, MODE_GC16, s_temperature);
     s_partial_count = PARTIAL_COUNT_ALLOWED;
   } else {
@@ -78,6 +95,19 @@ void Screen::setup(PixelResolution resolution, Orientation orientation)
   if (!s_epd_initialized) {
     epd_set_board(&paper_s3_board);
     epd_init(epd_current_board(), &ED047TC2, EPD_OPTIONS_DEFAULT);
+
+    // Initialize temperature sensor
+    // Initialize temperature sensor
+    temperature_sensor_config_t temp_sensor_config = {};
+    temp_sensor_config.range_min = 10;
+    temp_sensor_config.range_max = 50;
+    
+
+    // temp_sensor_config.flags = {}; // Ensure flags are init if needed
+    if (temperature_sensor_install(&temp_sensor_config, &temp_sensor) == ESP_OK) {
+        temperature_sensor_enable(temp_sensor);
+    }
+    
     // Rotate the epdiy drawing coordinates so that the logical page is
     // portrait when the device is held with USB-C at the bottom and the
     // power button on the right.
@@ -273,8 +303,82 @@ void Screen::draw_rectangle(Dim dim, Pos pos, uint8_t color)
 
 void Screen::draw_round_rectangle(Dim dim, Pos pos, uint8_t color)
 {
-  // Approximate with a simple rectangle for now.
-  draw_rectangle(dim, pos, color);
+  if (!s_epd_initialized) return;
+
+  uint16_t x_max = pos.x + dim.width;
+  uint16_t y_max = pos.y + dim.height;
+  if (x_max > width)  x_max = width;
+  if (y_max > height) y_max = height;
+  if (dim.width < 5 || dim.height < 5) {
+      draw_rectangle(dim, pos, color);
+      return;
+  }
+
+  uint16_t r = 5; // Radius
+  if (dim.width < 2 * r) r = dim.width / 2;
+  if (dim.height < 2 * r) r = dim.height / 2;
+
+  const uint8_t nib = gray3_to_nibble(color);
+
+  // Draw straight lines
+  for (uint16_t x = pos.x + r; x < x_max - r; ++x) {
+    set_pixel_nibble_screen(x, pos.y, nib);
+    set_pixel_nibble_screen(x, y_max - 1, nib);
+  }
+  for (uint16_t y = pos.y + r; y < y_max - r; ++y) {
+    set_pixel_nibble_screen(pos.x, y, nib);
+    set_pixel_nibble_screen(x_max - 1, y, nib);
+  }
+
+  // Custom manual circle drawing for corners to fit quadrants
+    int f = 1 - r;
+    int ddF_x = 1;
+    int ddF_y = -2 * r;
+    int x = 0;
+    int y = r;
+
+    // Top Right: (x_max-r-1, pos.y+r)
+    // Top Left:  (pos.x+r, pos.y+r)
+    // Bot Right: (x_max-r-1, y_max-r-1)
+    // Bot Left:  (pos.x+r, y_max-r-1)
+    
+    // Middle Points (already done by lines partially, but let's connect corners)
+    set_pixel_nibble_screen(pos.x + r, pos.y, nib); // TL top
+    set_pixel_nibble_screen(x_max - r - 1, pos.y, nib); // TR top
+    set_pixel_nibble_screen(pos.x + r, y_max - 1, nib); // BL bot
+    set_pixel_nibble_screen(x_max - r - 1, y_max - 1, nib); // BR bot
+    set_pixel_nibble_screen(pos.x, pos.y + r, nib); // TL left
+    set_pixel_nibble_screen(x_max - 1, pos.y + r, nib); // TR right
+    set_pixel_nibble_screen(pos.x, y_max - r - 1, nib); // BL left
+    set_pixel_nibble_screen(x_max - 1, y_max - r - 1, nib); // BR right
+
+
+    while (x < y) {
+        if (f >= 0) {
+            y--;
+            ddF_y += 2;
+            f += ddF_y;
+        }
+        x++;
+        ddF_x += 2;
+        f += ddF_x;
+        
+        // Quad 1 (Top Right) center: (x_max - r - 1, pos.y + r)
+        set_pixel_nibble_screen(x_max - r - 1 + x, pos.y + r - y, nib);
+        set_pixel_nibble_screen(x_max - r - 1 + y, pos.y + r - x, nib);
+        
+        // Quad 2 (Top Left) center: (pos.x + r, pos.y + r)
+        set_pixel_nibble_screen(pos.x + r - x, pos.y + r - y, nib);
+        set_pixel_nibble_screen(pos.x + r - y, pos.y + r - x, nib);
+        
+        // Quad 3 (Bottom Left) center: (pos.x + r, y_max - r - 1)
+        set_pixel_nibble_screen(pos.x + r - x, y_max - r - 1 + y, nib);
+        set_pixel_nibble_screen(pos.x + r - y, y_max - r - 1 + x, nib);
+        
+        // Quad 4 (Bottom Right) center: (x_max - r - 1, y_max - r - 1)
+        set_pixel_nibble_screen(x_max - r - 1 + x, y_max - r - 1 + y, nib);
+        set_pixel_nibble_screen(x_max - r - 1 + y, y_max - r - 1 + x, nib);
+    }
 }
 
 void Screen::colorize_region(Dim dim, Pos pos, uint8_t color)
@@ -294,6 +398,13 @@ void Screen::colorize_region(Dim dim, Pos pos, uint8_t color)
       set_pixel_nibble_screen(x, y, nib);
     }
   }
+}
+int Screen::get_temperature() {
+  return s_temperature;
+}
+
+extern "C" int lib_get_temperature() {
+  return Screen::get_temperature();
 }
 
 #endif // BOARD_TYPE_PAPER_S3

@@ -67,6 +67,11 @@ class BookController
     static constexpr char const * TAG = "BookController";
 
     PageLocs::PageId current_page_id;
+
+    // Helper methods for input handling
+    void handle_swipe(const EventMgr::Event & event);
+    void handle_tap(const EventMgr::Event & event);
+    void handle_hold(const EventMgr::Event & event);
 };
 
 #if __BOOK_CONTROLLER__

@@ -172,8 +172,10 @@ static void epd_paper_s3_poweroff(epd_ctrl_state_t* state) {
     epd_paper_s3_set_ctrl(state, &mask);
 }
 
+extern int lib_get_temperature();
+
 static float epd_paper_s3_temperature(void) {
-    return 20.0f;
+    return (float)lib_get_temperature();
 }
 
 static void epd_paper_s3_set_vcom(int value) {
