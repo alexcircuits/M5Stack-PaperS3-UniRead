@@ -17,6 +17,7 @@
   #include "models/epub.hpp"
   #include "models/config.hpp"
   #include "models/nvs_mgr.hpp"
+  #include "models/bookmarks.hpp"
   #include "screen.hpp"
   #include "inkplate_platform.hpp"
   #include "helpers/unzip.hpp"
@@ -177,6 +178,7 @@
         msg_viewer.show(MsgViewer::MsgType::INFO, false, true, "Starting", "One moment please...");
 
         books_dir_controller.setup();
+        bookmarks.setup();
         LOG_D("Initialization completed");
         app_controller.start();
       }

@@ -384,3 +384,37 @@ MsgViewer::out_of_memory(const char * raison)
     exit(0);
   #endif
 }
+
+// Progress indicator implementation
+
+void 
+MsgViewer::start_progress(const char * title, const char * message)
+{
+  show(MsgType::INFO, false, true, title, message);
+}
+
+void 
+MsgViewer::update_progress(int percentage)
+{
+  if (percentage < 0) percentage = 0;
+  if (percentage > 100) percentage = 100;
+
+  const uint16_t BAR_WIDTH = 200;
+  const uint16_t BAR_HEIGHT = 20;
+  uint16_t x = (Screen::get_width() - BAR_WIDTH) / 2;
+  uint16_t y = (Screen::get_height() / 2) + 40; 
+
+  // Use partial update if available to avoid flashing
+  // screen.draw_rect(x, y, BAR_WIDTH, BAR_HEIGHT, 0); 
+  
+  uint16_t fill_width = (BAR_WIDTH - 4) * percentage / 100;
+  if (fill_width > 0) {
+    screen.colorize_region(Dim(fill_width, BAR_HEIGHT - 4), Pos(x + 2, y + 2), Screen::BLACK_COLOR);
+  }
+}
+
+void 
+MsgViewer::end_progress()
+{
+  // No-op for now
+}

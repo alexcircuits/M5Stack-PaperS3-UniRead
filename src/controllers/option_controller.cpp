@@ -7,6 +7,7 @@
 
 #include "controllers/common_actions.hpp"
 #include "controllers/app_controller.hpp"
+#include "controllers/book_controller.hpp"
 #include "controllers/books_dir_controller.hpp"
 #include "controllers/ntp.hpp"
 #include "controllers/clock.hpp"
@@ -327,6 +328,8 @@ init_nvs()
 
 // IMPORTANT!!!
 // The first (menu[0]) and the last menu entry (the one before END_MENU) MUST ALWAYS BE VISIBLE!!!
+
+// ... (CommonActions omitted)
 
 static MenuViewer::MenuEntry menu[] = {
 

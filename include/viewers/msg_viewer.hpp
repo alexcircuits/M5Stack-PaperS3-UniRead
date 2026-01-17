@@ -57,6 +57,11 @@ class MsgViewer {
     //void show_progress(const char * title, ...);
     //void add_dot();
     void out_of_memory(const char * raison);
+    
+    // Progress indicator methods
+    void start_progress(const char * title, const char * message);
+    void update_progress(int percentage); // 0-100
+    void end_progress();
 };
 
 #if __MSG_VIEWER__

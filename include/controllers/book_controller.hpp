@@ -9,20 +9,56 @@
 #include "models/epub.hpp"
 #include "models/page_locs.hpp"
 
+/**
+ * @brief Controller for the Book Reading view
+ * 
+ * Manages the interaction between the user and the ebook content.
+ * Handles page navigation, gestures (swipe/tap), and bookmarking.
+ */
 class BookController
 {
   public:
     BookController() :
       current_page_id(PageLocs::PageId(0, 0))
     { }
-    
+
+    /**
+     * @brief Handle user input events
+     * 
+     * Processes touch gestures for page turning, menu access, and bookmarks.
+     * 
+     * @param event The input event
+     */
     void input_event(const EventMgr::Event & event);
+
+    /**
+     * @brief Called when the view becomes active
+     * 
+     * Loads the current page location and renders the page.
+     */
     void enter();
+
+    /**
+     * @brief Called when leaving the view
+     * 
+     * @param going_to_deep_sleep True if the device is about to sleep
+     */
     void leave(bool going_to_deep_sleep = false);
+
+    /**
+     * @brief Open an EPUB book file
+     * 
+     * @param book_title Title of the book
+     * @param book_filename Path to the .epub file
+     * @param page_id Location to jump to (optional)
+     * @return true if opened successfully
+     * @return false if file error
+     */
     bool open_book_file(const std::string & book_title, 
                         const std::string & book_filename, 
                         const PageLocs::PageId & page_id);
-    void put_str(const char * str, int xpos, int ypos);
+
+
 
     inline const PageLocs::PageId & get_current_page_id() { return current_page_id; }
     inline void set_current_page_id(const PageLocs::PageId & page_id) { current_page_id = page_id; }
@@ -31,6 +67,11 @@ class BookController
     static constexpr char const * TAG = "BookController";
 
     PageLocs::PageId current_page_id;
+
+    // Helper methods for input handling
+    void handle_swipe(const EventMgr::Event & event);
+    void handle_tap(const EventMgr::Event & event);
+    void handle_hold(const EventMgr::Event & event);
 };
 
 #if __BOOK_CONTROLLER__

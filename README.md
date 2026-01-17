@@ -1,91 +1,101 @@
-# EPub-M5Stack-Paper-S3 (fork of EPub-InkPlate)
+# EPub-M5Stack-Paper-S3
 
-This repository is a fork of https://github.com/turgu1/EPub-InkPlate, ported to support the **M5Stack Paper S3** (ESP32-S3).
+[![Build Status](https://github.com/juicecultus/EPub-M5Stack-Paper-S3/actions/workflows/ci.yml/badge.svg)](https://github.com/juicecultus/EPub-M5Stack-Paper-S3/actions)
 
-- **Upstream**: https://github.com/turgu1/EPub-InkPlate
-- **This fork**: https://github.com/juicecultus/EPub-M5Stack-Paper-S3
+An open-source EPub e-book reader for the **M5Stack Paper S3** (ESP32-S3) with 4.7" e-ink display.
 
-### Quick start (M5Stack Paper S3)
+> This is a fork of [EPub-InkPlate](https://github.com/turgu1/EPub-InkPlate), ported to support M5Stack Paper S3 hardware.
+
+## Features
+
+- **Touch screen** navigation with swipe gestures
+- **TTF/OTF font** support with multiple typeface styles
+- **JPEG/PNG images** with grayscale dithering
+- **EPub v2/v3** format support
+- **WiFi** book upload via built-in web server
+- **Power management** with deep sleep support
+- **Table of contents** navigation
+- **Configurable** font size, margins, and orientation
+
+## Hardware Requirements
+
+| Component | Specification |
+|-----------|---------------|
+| Device | M5Stack Paper S3 |
+| Display | 4.7" E-Ink (960×540) |
+| CPU | ESP32-S3 dual-core |
+| Storage | 16MB Flash + micro-SD card |
+| Touch | GT911 capacitive touch |
+
+## Quick Start
+
+### 1. Prerequisites
+
+- [PlatformIO](https://platformio.org/) (VS Code extension recommended)
+- micro-SD card (FAT32 formatted)
+
+### 2. Clone & Build
 
 ```bash
 git clone --recurse-submodules https://github.com/juicecultus/EPub-M5Stack-Paper-S3.git
 cd EPub-M5Stack-Paper-S3
 
-# (Optional safety) ensure submodules are initialized
-git submodule update --init --recursive
+# Build (paper_s3 is the default environment)
+pio run
 
-# Build
-pio run -e paper_s3
-
-# Flash
-pio run -e paper_s3 -t upload
+# Flash to device
+pio run -t upload
 ```
 
-The PlatformIO environment for this device is `paper_s3` (see `platformio.ini`).
+### 3. Prepare SD Card
 
-## Last news
+Copy the contents of `SDCard/` to your micro-SD card:
 
-(Updated 2022.5.01)
+```
+SD Card Root/
+├── fonts/          # Required fonts (copy from SDCard/fonts/)
+│   ├── drawings.otf  # Required for menu icons
+│   └── ...
+└── books/          # Your .epub files go here
+```
 
-Update to version 2.0.1
+## Usage
 
-- For Inkplate-6PLUS and Inkplate-10: The ESP-IDF-Inkplate library has been updated (v0.9.6) to support some of these devices to be delivered without a second MCP chip onboard. The presence of the second MCP is now dynamically detected by the software.
+| Gesture | Action |
+|---------|--------|
+| Swipe Left | Next page |
+| Swipe Right | Previous page |
+| Tap Center | Open menu |
+| Long Press | Options |
 
-- For all Inkplates: Now using ESP-IDF framework v4.3.2
+## Troubleshooting
 
-## Unresolved issue
+**Device won't boot / crashes:**
+- Ensure SD card is FAT32 formatted
+- Verify `fonts/drawings.otf` exists on SD card
+- Check serial monitor: `pio device monitor`
 
-[ ] A device reset may happen reading a book, and changing the current font as the background process is computing pages location. 
+**Touch not responding:**
+- GT911 touch controller may need reset
+- Try power cycling the device
 
----
+**Build errors:**
+- Run `git submodule update --init --recursive`
+- Ensure ESP-IDF toolchain is properly installed
 
-This is an EPub reader for the e-Radionica made Inkplate devices.
+## Development
 
-Here are the main characterics:
+See [CHANGES.md](CHANGES.md) for version history.
 
-- TTF, and OTF embedded fonts support.
-- Normal, Bold, Italic, Bold+Italic face types.
-- Bitmap images dithering display (JPEG, PNG).
-- EPub (V2, V3) book format subset.
-- UTF-8 characters (supplied fonts limited to latin1).
-- Inkplate tactile keys (single and double click to get six buttons).
-- Screen orientation (portrait / landscape).
-- Left, center, right, and justify text alignments.
-- Font size.
-- Indentation.
-- Some basic parameters and options.
-- Limited CSS formatting.
-- WiFi-based documents download (Web server based).
-- Battery state and power management (light, deep sleep, battery level display).
-- Table of content.
-- Multiple fonts choices selectable by the user.
-- Linear and matrix view of book list.
-- Real-Time clock.
-- Inkplate-6PLUS touch screen and backlit.
-- Keeps location of the last 10 books being read.
+### Project Structure
 
-Some vidos are  available on YouTube:
-
-- The first working version of the EPub-InkPlate application [Here](https://www.youtube.com/watch?v=VnTLMhEgsqA).
-- Demostration on the InkPlate-10 [Here](https://www.youtube.com/watch?v=qNAjbnEax8k).
-- Demonstration on the Inkplate-6PLUS [Here](https://www.youtube.com/watch?v=z1nvakbxiUQ).
-
-Some pictures from the InkPlate-6 version:
-
-<img src="doc/pictures/IMG_1377.JPG" alt="picture" width="300"/><img src="doc/pictures/IMG_1378.JPG" alt="picture" width="300"/>
-<img src="doc/pictures/IMG_1381.JPG" alt="picture" width="300"/>
-
-Some pictures from the Linux version:
-
-<img src="doc/pictures/books_select.png" alt="drawing" width="300"/><img src="doc/pictures/book_page.png" alt="drawing" width="300"/>
-
-A picture of the Web Server in a browser:
-
-<img src="doc/pictures/web_server.png" alt="drawing" width="500"/>
-
-Books Directory List: Linear vs Matrix View:
-
-<img src="doc/pictures/linear_view_6.png" alt="picture" width="300"/><img src="doc/pictures/matrix_view_6.png" alt="picture" width="300"/>
+```
+src/
+├── controllers/   # Input handling, navigation
+├── models/        # Data models (books, config, fonts)
+├── viewers/       # UI rendering
+└── main.cpp       # Entry point
+```
 
 
 ### Runtime environment

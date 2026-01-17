@@ -124,14 +124,16 @@ static void touch_task(void * param)
   constexpr uint16_t swipe_threshold          = 100; // pixels in GT911 space
   constexpr uint16_t longpress_move_threshold =  30; // max motion during hold
   constexpr uint32_t longpress_ms             = 600; // press duration
+  constexpr uint32_t debounce_ms              = 300; // min time between events
 
-  bool       touch_active = false;
-  bool       hold_sent    = false;
-  uint16_t   start_x      = 0;
-  uint16_t   start_y      = 0;
-  uint16_t   current_x    = 0;
-  uint16_t   current_y    = 0;
-  TickType_t start_tick   = 0;
+  bool       touch_active   = false;
+  bool       hold_sent      = false;
+  uint16_t   start_x        = 0;
+  uint16_t   start_y        = 0;
+  uint16_t   current_x      = 0;
+  uint16_t   current_y      = 0;
+  TickType_t start_tick     = 0;
+  TickType_t last_event_tick = 0;
 
   while (true) {
     uint16_t x = 0;
@@ -212,18 +214,30 @@ static void touch_task(void * param)
           ev.kind = (dx > 0) ? EventMgr::EventKind::SWIPE_RIGHT
                              : EventMgr::EventKind::SWIPE_LEFT;
         }
+        else if ((abs_dy > abs_dx) && (abs_dy > (int)swipe_threshold)) {
+          // Vertical swipe?
+          if (dy < 0) { // dy = start_y - current_y. if current > start, dy is negative -> Moving DOWN
+             ev.kind = EventMgr::EventKind::SWIPE_DOWN;
+          }
+        }
         else {
           // Short interaction: treat as a TAP.
           ev.kind = EventMgr::EventKind::TAP;
         }
 
         if ((ev.kind != EventMgr::EventKind::NONE) && (input_event_queue != nullptr)) {
-          xQueueSend(input_event_queue, &ev, 0);
+          // Debounce: skip event if too soon after last one
+          TickType_t now = xTaskGetTickCount();
+          uint32_t since_last_ms = (now - last_event_tick) * portTICK_PERIOD_MS;
+          if (since_last_ms >= debounce_ms) {
+            xQueueSend(input_event_queue, &ev, 0);
+            last_event_tick = now;
+          }
         }
       }
     }
 
-    vTaskDelay(pdMS_TO_TICKS(50));
+    vTaskDelay(pdMS_TO_TICKS(20));
   }
 }
 
@@ -233,7 +247,7 @@ bool EventMgr::setup()
 {
 #if EPUB_INKPLATE_BUILD
   if (input_event_queue == nullptr) {
-    input_event_queue = xQueueCreate(10, sizeof(Event));
+    input_event_queue = xQueueCreate(20, sizeof(Event));
   }
 
   i2c_config_t conf = {};
@@ -272,7 +286,7 @@ bool EventMgr::setup()
   }
 
   TaskHandle_t handle = nullptr;
-  xTaskCreatePinnedToCore(touch_task, "papers3_touch", 4096, nullptr, 5, &handle, 1);
+  xTaskCreatePinnedToCore(touch_task, "papers3_touch", 4096, nullptr, configMAX_PRIORITIES - 1, &handle, 1);
 #endif
 
   return true;
@@ -296,7 +310,7 @@ void EventMgr::loop()
 
 const EventMgr::Event & EventMgr::get_event()
 {
-  static Event event{ EventKind::NONE };
+  static Event event{ EventKind::NONE, 0, 0, 0 };
 
 #if EPUB_INKPLATE_BUILD
   if (input_event_queue == nullptr) {

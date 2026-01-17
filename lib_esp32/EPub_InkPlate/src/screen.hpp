@@ -63,6 +63,7 @@ class Screen : NonCopyable
 
     inline static uint16_t get_width() { return width; }
     inline static uint16_t get_height() { return height; }
+    static int get_temperature();
 };
 
 #else  // !BOARD_TYPE_PAPER_S3

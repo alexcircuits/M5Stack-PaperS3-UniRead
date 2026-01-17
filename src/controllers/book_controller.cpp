@@ -8,6 +8,7 @@
 #include "controllers/app_controller.hpp"
 #include "controllers/books_dir_controller.hpp"
 #include "models/epub.hpp"
+#include "models/bookmarks.hpp"
 #include "viewers/book_viewer.hpp"
 #include "viewers/page.hpp"
 #include "viewers/msg_viewer.hpp"
@@ -15,6 +16,18 @@
 #if EPUB_INKPLATE_BUILD
   #include "nvs.h"
 #endif
+
+#include "viewers/keyboard_viewer.hpp"
+
+#include "screen.hpp"
+
+// Layout Constants
+static constexpr int16_t BOTTOM_BAR_HEIGHT = 40;
+// Actually Screen::get_width() is static but not constexpr. Let's use #define or just const inside methods.
+// Better:
+static const int16_t SYSTEM_ZONE_HEIGHT { 40 };
+
+// Methods removed: _show_keypad_input, goto_page
 
 void 
 BookController::enter()
@@ -80,74 +93,122 @@ BookController::open_book_file(
   void 
   BookController::input_event(const EventMgr::Event & event)
   {
-    const PageLocs::PageId * page_id;
     switch (event.kind) {
       case EventMgr::EventKind::SWIPE_RIGHT:
-        if (event.y < (Screen::get_height() - 40)) {
-          page_id = page_locs.get_prev_page_id(current_page_id);
-          if (page_id != nullptr) {
-            current_page_id.itemref_index = page_id->itemref_index;
-            current_page_id.offset        = page_id->offset;
-            book_viewer.show_page(current_page_id);
-          }
-        }
-        else {
-          page_id = page_locs.get_prev_page_id(current_page_id, 10);
-          if (page_id != nullptr) {
-            current_page_id.itemref_index = page_id->itemref_index;
-            current_page_id.offset        = page_id->offset;
-            book_viewer.show_page(current_page_id);
-          }
-        }
-        break;
-
+      case EventMgr::EventKind::SWIPE_DOWN:
       case EventMgr::EventKind::SWIPE_LEFT:
-        if (event.y < (Screen::get_height() - 40)) {
-          page_id = page_locs.get_next_page_id(current_page_id);
-          if (page_id != nullptr) {
-            current_page_id.itemref_index = page_id->itemref_index;
-            current_page_id.offset        = page_id->offset;
-            book_viewer.show_page(current_page_id);
-          }
-        }
-        else {
-          page_id = page_locs.get_next_page_id(current_page_id, 10);
-          if (page_id != nullptr) {
-            current_page_id.itemref_index = page_id->itemref_index;
-            current_page_id.offset        = page_id->offset;
-            book_viewer.show_page(current_page_id);
-          }           
-        }
+        handle_swipe(event);
         break;
       
+      case EventMgr::EventKind::HOLD:
+        handle_hold(event);
+        break;
+
       case EventMgr::EventKind::TAP:
-        if (event.y < (Screen::get_height() - 40)) {
-          if (event.x < (Screen::get_width() / 3)) {
-            page_id = page_locs.get_prev_page_id(current_page_id);
-            if (page_id != nullptr) {
-              current_page_id.itemref_index = page_id->itemref_index;
-              current_page_id.offset        = page_id->offset;
-              book_viewer.show_page(current_page_id);
-            }
-          }
-          else if (event.x > ((Screen::get_width() / 3) * 2)) {
-            page_id = page_locs.get_next_page_id(current_page_id);
-            if (page_id != nullptr) {
-              current_page_id.itemref_index = page_id->itemref_index;
-              current_page_id.offset        = page_id->offset;
-              book_viewer.show_page(current_page_id);
-            }
-          } else {           
-            app_controller.set_controller(AppController::Ctrl::PARAM);
-          }
-        } else {           
-          app_controller.set_controller(AppController::Ctrl::PARAM);
-        }
+        handle_tap(event);
         break;
         
       default:
         break;
     }
+  }
+
+  void BookController::handle_swipe(const EventMgr::Event & event)
+  {
+      const PageLocs::PageId * page_id = nullptr;
+      int16_t safe_height = Screen::get_height() - SYSTEM_ZONE_HEIGHT;
+
+      if (event.kind == EventMgr::EventKind::SWIPE_DOWN) {
+          // Return to Library listing
+          app_controller.set_controller(AppController::Ctrl::DIR);
+          return;
+      }
+
+      if (event.y < safe_height) {
+          // Normal Page Turn
+          if (event.kind == EventMgr::EventKind::SWIPE_RIGHT) {
+              page_id = page_locs.get_prev_page_id(current_page_id);
+          } else if (event.kind == EventMgr::EventKind::SWIPE_LEFT) {
+              page_id = page_locs.get_next_page_id(current_page_id);
+          }
+      } 
+      else {
+          // Fast Page Turn (10 pages)
+          if (event.kind == EventMgr::EventKind::SWIPE_RIGHT) {
+              page_id = page_locs.get_prev_page_id(current_page_id, 10);
+          } else if (event.kind == EventMgr::EventKind::SWIPE_LEFT) {
+              page_id = page_locs.get_next_page_id(current_page_id, 10);
+          }
+      }
+
+      if (page_id != nullptr) {
+          current_page_id.itemref_index = page_id->itemref_index;
+          current_page_id.offset        = page_id->offset;
+          book_viewer.show_page(current_page_id);
+      }
+  }
+
+  void BookController::handle_hold(const EventMgr::Event & event)
+  {
+      std::string filename = epub.get_current_filename();
+      int page_idx = current_page_id.itemref_index; 
+      
+      if (bookmarks.has_bookmark(filename, page_idx)) {
+         bookmarks.remove(filename, page_idx);
+         msg_viewer.show(MsgViewer::MsgType::INFO, true, false, "Bookmark", "Bookmark Removed");
+      } else {
+         bookmarks.add(filename, page_idx);
+         msg_viewer.show(MsgViewer::MsgType::INFO, true, false, "Bookmark", "Bookmark Added");
+      }
+  }
+
+  void BookController::handle_tap(const EventMgr::Event & event)
+  {
+      int16_t screen_width = Screen::get_width();
+      int16_t screen_height = Screen::get_height();
+      int16_t safe_height = screen_height - SYSTEM_ZONE_HEIGHT;
+      int16_t left_zone = screen_width / 3;
+      int16_t right_zone = (screen_width / 3) * 2;
+
+      const PageLocs::PageId * page_id = nullptr;
+
+      if (event.y < safe_height) {
+        if (event.x < left_zone) {
+          page_id = page_locs.get_prev_page_id(current_page_id);
+        }
+        else if (event.x > right_zone) {
+          page_id = page_locs.get_next_page_id(current_page_id);
+        } else {           
+          app_controller.set_controller(AppController::Ctrl::PARAM);
+          return;
+        }
+
+        if (page_id != nullptr) {
+            current_page_id.itemref_index = page_id->itemref_index;
+            current_page_id.offset        = page_id->offset;
+            book_viewer.show_page(current_page_id);
+        }
+      } else {           
+        // Bottom area tap: Interactive Progress Slider
+        LOG_D("Tabs on Bottom Slider area. x=%d", event.x);
+        
+        float percentage = (float)event.x / (float)screen_width;
+        
+        int16_t page_count = page_locs.get_page_count();
+        if (page_count > 0) {
+            int target_page_num = (int)(percentage * page_count);
+            if (target_page_num < 0) target_page_num = 0;
+            if (target_page_num >= page_count) target_page_num = page_count - 1;
+
+            LOG_D("Jumping to page %d / %d (%.2f%%)", target_page_num, page_count, percentage * 100);
+
+            const PageLocs::PageId * pid = page_locs.get_page_id_from_nbr(target_page_num);
+            if (pid != nullptr) {
+            current_page_id = *pid;
+            book_viewer.show_page(current_page_id);
+            }
+        }
+      }
   }
 #else
   void 
