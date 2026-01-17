@@ -8,6 +8,7 @@
 #include "controllers/app_controller.hpp"
 #include "controllers/books_dir_controller.hpp"
 #include "models/epub.hpp"
+#include "models/bookmarks.hpp"
 #include "viewers/book_viewer.hpp"
 #include "viewers/page.hpp"
 #include "viewers/msg_viewer.hpp"
@@ -120,6 +121,21 @@ BookController::open_book_file(
         }
         break;
       
+      case EventMgr::EventKind::HOLD:
+        {
+          std::string filename = epub.get_current_filename();
+          int page_idx = current_page_id.itemref_index; 
+          
+          if (bookmarks.has_bookmark(filename, page_idx)) {
+             bookmarks.remove(filename, page_idx);
+             msg_viewer.show(MsgViewer::MsgType::INFO, true, false, "Bookmark", "Bookmark Removed");
+          } else {
+             bookmarks.add(filename, page_idx);
+             msg_viewer.show(MsgViewer::MsgType::INFO, true, false, "Bookmark", "Bookmark Added");
+          }
+        }
+        break;
+
       case EventMgr::EventKind::TAP:
         if (event.y < (Screen::get_height() - 40)) {
           if (event.x < (Screen::get_width() / 3)) {

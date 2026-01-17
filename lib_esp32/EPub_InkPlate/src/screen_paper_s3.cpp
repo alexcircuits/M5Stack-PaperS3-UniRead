@@ -183,12 +183,27 @@ void Screen::draw_bitmap(const unsigned char * bitmap_data, Dim dim, Pos pos)
   if (x_max > width)  x_max = width;
   if (y_max > height) y_max = height;
 
-  // For best locality with the rotated coordinate system, iterate X (screen) outer.
-  for (uint16_t x = pos.x; x < x_max; ++x) {
-    for (uint16_t y = pos.y; y < y_max; ++y) {
-      const uint32_t p = (uint32_t)(y - pos.y) * dim.width + (x - pos.x);
-      const uint8_t v = bitmap_data[p];
-      set_pixel_nibble_screen(x, y, gray8_to_nibble(v));
+  // Optimized: iterate in physical framebuffer row order for better cache locality.
+  // Screen coords (x_scr, y_scr) map to physical (x_phys=y_scr, y_phys=EPD_HEIGHT-1-x_scr).
+  // Iterating y_scr (outer) and x_scr (inner) means x_phys changes fastest, giving row-major access.
+  const uint16_t fb_stride = EPD_WIDTH / 2;
+
+  for (uint16_t y_scr = pos.y; y_scr < y_max; ++y_scr) {
+    const uint16_t x_phys_base = y_scr;
+    const uint32_t src_row_offset = (uint32_t)(y_scr - pos.y) * dim.width;
+
+    for (uint16_t x_scr = pos.x; x_scr < x_max; ++x_scr) {
+      const uint16_t y_phys = (EPD_HEIGHT - 1) - x_scr;
+      const uint8_t v = bitmap_data[src_row_offset + (x_scr - pos.x)];
+      const uint8_t nib = (uint8_t)(v >> 4);
+
+      // Direct framebuffer write
+      uint8_t * buf_ptr = &s_framebuffer[y_phys * fb_stride + (x_phys_base >> 1)];
+      if (x_phys_base & 1) {
+        *buf_ptr = (uint8_t)((*buf_ptr & 0x0F) | (nib << 4));
+      } else {
+        *buf_ptr = (uint8_t)((*buf_ptr & 0xF0) | nib);
+      }
     }
   }
 }
@@ -203,17 +218,31 @@ void Screen::draw_glyph(const unsigned char * bitmap_data, Dim dim, Pos pos, uin
   if (x_max > width)  x_max = width;
   if (y_max > height) y_max = height;
 
-  // Glyph buffer is 8-bit alpha (0=transparent..255=opaque). We draw it as
-  // black with intensity proportional to alpha.
-  for (uint16_t i = 0; i < dim.width && (pos.x + i) < x_max; ++i) {
-    const uint16_t x = (uint16_t)(pos.x + i);
-    for (uint16_t j = 0; j < dim.height && (pos.y + j) < y_max; ++j) {
-      const uint16_t y = (uint16_t)(pos.y + j);
-      const uint8_t a = bitmap_data[j * pitch + i];
+  // Optimized: iterate row-major in source glyph buffer (j outer, i inner).
+  // Glyph buffer is 8-bit alpha (0=transparent..255=opaque).
+  const uint16_t fb_stride = EPD_WIDTH / 2;
+
+  for (uint16_t j = 0; j < dim.height && (pos.y + j) < y_max; ++j) {
+    const uint16_t y_scr = (uint16_t)(pos.y + j);
+    const unsigned char * src_row = &bitmap_data[j * pitch];
+
+    for (uint16_t i = 0; i < dim.width && (pos.x + i) < x_max; ++i) {
+      const uint8_t a = src_row[i];
       if (!a) continue;
-      const uint8_t nib = alpha8_to_nibble(a);
+
+      const uint8_t nib = (uint8_t)(15 - (a >> 4));
       if (nib == 0x0F) continue;
-      set_pixel_nibble_screen(x, y, nib);
+
+      const uint16_t x_scr = (uint16_t)(pos.x + i);
+      const uint16_t x_phys = y_scr;
+      const uint16_t y_phys = (EPD_HEIGHT - 1) - x_scr;
+
+      uint8_t * buf_ptr = &s_framebuffer[y_phys * fb_stride + (x_phys >> 1)];
+      if (x_phys & 1) {
+        *buf_ptr = (uint8_t)((*buf_ptr & 0x0F) | (nib << 4));
+      } else {
+        *buf_ptr = (uint8_t)((*buf_ptr & 0xF0) | nib);
+      }
     }
   }
 }
