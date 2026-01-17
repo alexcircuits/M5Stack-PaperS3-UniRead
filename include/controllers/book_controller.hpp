@@ -69,6 +69,8 @@ class BookController
     PageLocs::PageId current_page_id;
     bool             keypad_is_shown = false;
     std::string      entered_page_num_str;
+
+    void _show_keypad_input();
 };
 
 #if __BOOK_CONTROLLER__
