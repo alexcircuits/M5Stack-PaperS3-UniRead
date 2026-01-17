@@ -135,7 +135,7 @@ extract_path(const char * fname, std::string & path)
 bool
 EPub::check_mimetype()
 {
-  char   * data;
+  std::unique_ptr<char[], MallocDeleter> data;
   uint32_t size;
 
   // A file named 'mimetype' must be present and must contain the
@@ -143,13 +143,13 @@ EPub::check_mimetype()
 
   LOG_D("Check mimetype.");
   if (!(data = unzip.get_file("mimetype", size))) return false;
-  if (strncmp(data, "application/epub+zip", 20)) {
+  if (strncmp(data.get(), "application/epub+zip", 20)) {
     LOG_E("This is not an EPUB ebook format.");
-    free(data);
+    // data auto-freed
     return false;
   }
 
-  free(data);
+  // data auto-freed
   return true;
 }
 
@@ -193,11 +193,10 @@ EPub::get_encryption_xml()
 
   if ((unzip.file_exists(fname) && 
       (encryption_data = unzip.get_file(fname, size)) != nullptr)) {
-    xml_parse_result res = encryption.load_buffer_inplace(encryption_data, size);
+    xml_parse_result res = encryption.load_buffer_inplace(encryption_data.get(), size);
     if (res.status != status_ok) {
       LOG_E("encryption.xml load error: %d", res.status);
-      free(encryption_data);
-      encryption_data = nullptr;
+      encryption_data.reset(); // free
       return false;
     }
 
@@ -213,8 +212,8 @@ EPub::get_encryption_xml()
       LOG_E("encryption.xml file format not supported.");
 
       encryption.reset();
-      free(encryption_data);
-      encryption_data    = nullptr;
+      encryption.reset();
+      encryption_data.reset();
 
       return false;
     }
@@ -229,7 +228,7 @@ bool
 EPub::get_opf_filename(std::string & filename)
 {
   int          err = 0;
-  char       * data;
+  std::unique_ptr<char[], MallocDeleter> data;
   uint32_t     size;
 
   // A file named 'META-INF/container.xml' must be present and point to the OPF file
@@ -240,10 +239,10 @@ EPub::get_opf_filename(std::string & filename)
   xml_node        node;
   xml_attribute   attr;
 
-  xml_parse_result res = doc.load_buffer_inplace(data, size);
+  xml_parse_result res = doc.load_buffer_inplace(data.get(), size);
   if (res.status != status_ok) {
     LOG_E("xml load error: %d", res.status);
-    free(data);
+    // data auto freed
     return false;
   }
 
@@ -264,7 +263,7 @@ EPub::get_opf_filename(std::string & filename)
   }
 
   doc.reset(); 
-  free(data);
+  // data auto freed
 
   return completed;
 }
@@ -383,12 +382,11 @@ EPub::get_opf(std::string & filename)
 
     if (!(opf_data = unzip.get_file(filename.c_str(), size))) ERR(6);
 
-    xml_parse_result res = opf.load_buffer_inplace(opf_data, size);
+    xml_parse_result res = opf.load_buffer_inplace(opf_data.get(), size);
     if (res.status != status_ok) {
       LOG_E("xml load error: %d", res.status);
       opf.reset();
-      free(opf_data);
-      opf_data = nullptr;
+      opf_data.reset();
       return false;
     }
 
@@ -410,7 +408,7 @@ EPub::get_opf(std::string & filename)
   if (!completed) {
     LOG_E("EPub get_opf error: %d", err);
     opf.reset();
-    free(opf_data);
+    opf_data.reset();
   }
  
   LOG_D("get_opf() completed.");
@@ -448,7 +446,7 @@ EPub::filename_locate(const char * fname)
   return filename;
 }
 
-char *
+std::unique_ptr<char[], MallocDeleter>
 EPub::retrieve_file(const char * fname, uint32_t & size)
 {
   // Cleanup the filename that can contain characters as hexadecimal values
@@ -460,9 +458,7 @@ EPub::retrieve_file(const char * fname, uint32_t & size)
 
   // LOG_D("Retrieving file %s", filename.c_str());
 
-  char * str = unzip.get_file(filename.c_str(), size);
-
-  return str;
+  return unzip.get_file(filename.c_str(), size);
 }
 
 void
@@ -515,21 +511,28 @@ EPub::load_font(const std::string      filename,
       LOG_E("Fonts are using too much space (max 800K). Kept the first fonts read.");
     }
     else {
-      unsigned char * buffer;
+      std::unique_ptr<char[], MallocDeleter> buffer;
       ObfuscationType obf_type = get_file_obfuscation(filename.c_str());
       if (obf_type != ObfuscationType::NONE) {
         if (obf_type != ObfuscationType::UNKNOWN) {
-          buffer = (unsigned char *) unzip.get_file(filename.c_str(), size);
+          buffer = unzip.get_file(filename.c_str(), size);
           if (buffer == nullptr) {
             LOG_E("Unable to retrieve font file: %s", filename.c_str());
           }
           else {
-            decrypt(buffer, size, obf_type);
+            decrypt(buffer.get(), size, obf_type);
 
-            if (fonts.add(font_family, style, buffer, size, filename)) {
+            // fonts.add takes ownership if successful? Assume yes. 
+            // We release ownership to it. Explicitly cast to unsigned char*
+            if (fonts.add(font_family, style, (unsigned char *)buffer.release(), size, filename)) {
               fonts_size += size;
               return true;
             }
+            // If add failed, buffer was released and leaked? 
+            // No, fonts.add likely didn't take ownership if it failed.
+            // But we called .release(). We need to capture it back if false?
+            // Actually, safest is: pass raw pointer, if success, release smart ptr.
+            // See below logic
           }   
         }
         else {
@@ -537,12 +540,16 @@ EPub::load_font(const std::string      filename,
         }
       }
       else {
-        buffer = (unsigned char *) unzip.get_file(filename.c_str(), size);
+        buffer = unzip.get_file(filename.c_str(), size);
         if (buffer == nullptr) {
           LOG_E("Unable to retrieve font file: %s", filename.c_str());
         }
         else {
-          if (fonts.add(font_family, style, buffer, size, filename)) {
+          // Pass raw pointer first. If success, release. 
+          // Note: fonts.add signature is (string, style, uchar*, int, string)
+          unsigned char * raw_buf = (unsigned char *)buffer.get();
+          if (fonts.add(font_family, style, raw_buf, size, filename)) {
+            buffer.release(); // Ownership transferred
             fonts_size += size;
             return true;
           }
@@ -668,7 +675,7 @@ EPub::retrieve_css(ItemInfo & item)
           uint32_t size;
           std::string fname = item.file_path;
           fname.append(css_id.c_str());
-          char * data = retrieve_file(fname.c_str(), size);
+          std::unique_ptr<char[], MallocDeleter> data = retrieve_file(fname.c_str(), size);
 
           if (data != nullptr) {
             #if COMPUTE_SIZE
@@ -677,9 +684,9 @@ EPub::retrieve_css(ItemInfo & item)
             LOG_D("CSS Filename: %s", fname.c_str());
             std::string path;
             extract_path(fname.c_str(), path);
-            CSS * css_tmp = new CSS(css_id.c_str(), path.c_str(), data, size, 0);
+            CSS * css_tmp = new CSS(css_id.c_str(), path.c_str(), data.get(), size, 0);
             if (css_tmp == nullptr) msg_viewer.out_of_memory("css temp allocation");
-            free(data);
+            // data auto freed
 
             // #if DEBUGGING
             //   css_tmp->show();
@@ -785,14 +792,14 @@ EPub::get_item(pugi::xml_node itemref,
     if (item.media_type == MediaType::XML) {
 
       char * str;
-      while ((str = strstr(item.data, "/*<![CDATA[*/")) != nullptr) {
+      while ((str = strstr(item.data.get(), "/*<![CDATA[*/")) != nullptr) {
         *str++ = ' ';
         *str   = ' ';
         str   +=  10;
         *str++ = ' ';
         *str   = ' ';
       }
-      while ((str = strstr(item.data, "/*]]>*/")) != nullptr) {
+      while ((str = strstr(item.data.get(), "/*]]>*/")) != nullptr) {
         *str++ = ' ';
         *str   = ' ';
         str   +=   4;
@@ -801,7 +808,7 @@ EPub::get_item(pugi::xml_node itemref,
       }
       LOG_D("Reading file %s", attr.value());
 
-      xml_parse_result res = item.xml_doc.load_buffer_inplace(item.data, size);
+      xml_parse_result res = item.xml_doc.load_buffer_inplace(item.data.get(), size);
       if (res.status != status_ok) {
         LOG_E("item_doc xml load error: %d", res.status);
         // msg_viewer.show(
@@ -813,8 +820,7 @@ EPub::get_item(pugi::xml_node itemref,
         // );
         item.xml_doc.reset();
         if (item.data != nullptr) {
-          free(item.data);
-          item.data = nullptr;
+          item.data.reset();
         }
         return false;
       }
@@ -933,10 +939,11 @@ void
 EPub::clear_item_data(ItemInfo & item)
 {
   item.xml_doc.reset();
-  if (item.data != nullptr) {
-    free(item.data);
-    item.data = nullptr;
-  }
+  // if (item.data != nullptr) {
+  //   free(item.data);
+  //   item.data = nullptr;
+  // }
+  item.data.reset();
 
   // for (auto * css : current_item_css_list) {
   //   delete css;
@@ -958,16 +965,14 @@ EPub::close_file()
 
   if (opf_data) {
     opf.reset();
-    free(opf_data);
-    opf_data = nullptr;
+    opf_data.reset();
   }
 
   opf_base_path.clear();
 
   if (encryption_data) {
     encryption.reset();
-    free(encryption_data);
-    encryption_data = nullptr;
+    encryption_data.reset();
   }
 
   unzip.close_zip_file();

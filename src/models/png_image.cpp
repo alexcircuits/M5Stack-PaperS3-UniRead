@@ -143,17 +143,17 @@ PngImage::PngImage(std::string filename, Dim max, bool load_bitmap) : Image(file
 
   #if defined(BOARD_TYPE_PAPER_S3)
     uint32_t png_size = 0;
-    char * png_data = unzip.get_file(filename.c_str(), png_size);
+    std::unique_ptr<char[], MallocDeleter> png_data = unzip.get_file(filename.c_str(), png_size);
     if (png_data == nullptr || png_size == 0) {
       LOG_E("Unable to load PNG from EPUB: %s", filename.c_str());
       return;
     }
 
     PNG png;
-    int rc = png.openRAM((uint8_t *)png_data, (int)png_size, PNGDraw);
+    int rc = png.openRAM((uint8_t *)png_data.get(), (int)png_size, PNGDraw);
     if (rc != PNG_SUCCESS) {
       LOG_E("PNGdec open failed. Error: %d", png.getLastError());
-      free(png_data);
+      // png_data auto freed
       return;
     }
 
@@ -175,7 +175,7 @@ PngImage::PngImage(std::string filename, Dim max, bool load_bitmap) : Image(file
     if (!load_bitmap) {
       image_data.dim = Dim(out_w, out_h);
       png.close();
-      free(png_data);
+      // png_data auto freed
       return;
     }
 
@@ -183,14 +183,14 @@ PngImage::PngImage(std::string filename, Dim max, bool load_bitmap) : Image(file
     image_data.bitmap = (uint8_t *) allocate(out_w * out_h);
     if (image_data.bitmap == nullptr) {
       png.close();
-      free(png_data);
+      // png_data auto freed
       return;
     }
 
     uint16_t * rgb565_line = (uint16_t *) allocate(orig_w * sizeof(uint16_t));
     if (rgb565_line == nullptr) {
       png.close();
-      free(png_data);
+      // png_data auto freed
       return;
     }
 
@@ -217,7 +217,7 @@ PngImage::PngImage(std::string filename, Dim max, bool load_bitmap) : Image(file
 
     free(rgb565_line);
     png.close();
-    free(png_data);
+    // png_data auto freed
 
     LOG_I("PNG Image load complete");
 

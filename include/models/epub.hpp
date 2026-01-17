@@ -4,6 +4,8 @@
 
 #pragma once
 #include "global.hpp"
+#include "helpers/unzip.hpp"
+#include <memory>
 
 #include "pugixml.hpp"
 
@@ -30,7 +32,7 @@ class EPub
       CSSList            css_cache;   ///< style attributes part of the current processed item are kept here. They will be destroyed when the item is no longer required.
       CSSList            css_list;    ///< List of css sources for the current item file shown. Those are indexes inside css_cache.
       CSS *              css;         ///< Ghost CSS created through merging css suites from css_list and css_cache.
-      char *             data;
+      std::unique_ptr<char[], MallocDeleter> data;
       MediaType          media_type;
     };
 
@@ -64,8 +66,8 @@ class EPub
     BinUUID            bin_uuid;
     ShaUUID            sha_uuid;
 
-    char *             opf_data;
-    char *             encryption_data;
+    std::unique_ptr<char[], MallocDeleter> opf_data;
+    std::unique_ptr<char[], MallocDeleter> encryption_data;
     std::string        current_filename;
     std::string        opf_base_path;
 
@@ -100,7 +102,7 @@ class EPub
     bool                   close_file();
     Image *                 get_image(std::string          & fname,
                                       bool                   load         );
-    char*               retrieve_file(const char           * fname, 
+    std::unique_ptr<char[], MallocDeleter> retrieve_file(const char * fname, 
                                       uint32_t             & size         );
     bool                     get_item(pugi::xml_node         itemref, 
                                       ItemInfo             & item         );

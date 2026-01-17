@@ -162,16 +162,16 @@ JPegImage::JPegImage(std::string filename, Dim max, bool load_bitmap) : Image(fi
 
 #if defined(BOARD_TYPE_PAPER_S3)
   uint32_t jpg_size = 0;
-  char * jpg_data = unzip.get_file(filename.c_str(), jpg_size);
+  std::unique_ptr<char[], MallocDeleter> jpg_data = unzip.get_file(filename.c_str(), jpg_size);
   if (jpg_data == nullptr || jpg_size == 0) {
     LOG_E("Unable to load JPEG from EPUB: %s", filename.c_str());
     return;
   }
 
   JPEGDEC jpeg;
-  if (!jpeg.openRAM((uint8_t *)jpg_data, (int)jpg_size, JPEGDraw)) {
+  if (!jpeg.openRAM((uint8_t *)jpg_data.get(), (int)jpg_size, JPEGDraw)) {
     LOG_E("JPEGDEC open failed. Error: %d", jpeg.getLastError());
-    free(jpg_data);
+    // jpg_data auto freed
     return;
   }
 
@@ -195,14 +195,14 @@ JPegImage::JPegImage(std::string filename, Dim max, bool load_bitmap) : Image(fi
       image_data.bitmap = (uint8_t *)allocate(out_w * out_h);
       if (image_data.bitmap == nullptr) {
         jpeg.close();
-        free(jpg_data);
+        // jpg_data auto freed
         return;
       }
     }
     else {
       image_data.dim = Dim(out_w, out_h);
       jpeg.close();
-      free(jpg_data);
+      // jpg_data auto freed
       return;
     }
 
@@ -226,7 +226,7 @@ JPegImage::JPegImage(std::string filename, Dim max, bool load_bitmap) : Image(fi
     }
 
     jpeg.close();
-    free(jpg_data);
+    // jpg_data auto freed
 
   #else
     if (unzip.open_stream_file(filename.c_str(), file_size)) {

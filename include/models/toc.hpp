@@ -13,7 +13,12 @@
 
 #include "models/page_locs.hpp"
 #include "helpers/char_pool.hpp"
+#include "models/page_locs.hpp"
+#include "helpers/char_pool.hpp"
 #include "helpers/simple_db.hpp"
+#include "helpers/unzip.hpp"
+
+#include <memory>
 
 #include <forward_list>
 #include <map>
@@ -141,7 +146,7 @@ class TOC
     uint16_t   char_buffer_size;
 
     pugi::xml_document * ncx_opf;
-    char               * ncx_data;
+    std::unique_ptr<char[], MallocDeleter> ncx_data;
 
     const pugi::xml_document * opf;
 

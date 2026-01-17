@@ -325,7 +325,7 @@ TOC::load_from_epub()
 
   if ((ncx_data = epub.retrieve_file(filename, ncx_size)) != nullptr) {
     if ((ncx_opf = new pugi::xml_document()) == nullptr) {
-      free(ncx_data);
+      ncx_data.reset();
       return false;
     }
   }
@@ -333,7 +333,7 @@ TOC::load_from_epub()
 
   // parse xml and load navPoint entries
 
-  xml_parse_result res = ncx_opf->load_buffer_inplace(ncx_data, ncx_size);
+  xml_parse_result res = ncx_opf->load_buffer_inplace(ncx_data.get(), ncx_size);
   if (res.status != status_ok) {
     LOG_E("xml load error: %d", res.status);
     goto error;
@@ -360,9 +360,8 @@ error:
   result = false;
 ok:
   ncx_opf->reset();
-  free(ncx_data);
+  ncx_data.reset();
   ncx_opf  = nullptr;
-  ncx_data = nullptr;
 
   #if DEBUGGING
     show();
@@ -423,8 +422,7 @@ TOC::clean()
   }
 
   if (ncx_data != nullptr) {
-    free(ncx_data);
-    ncx_data = nullptr;
+    ncx_data.reset();
   }
 
   char_pool   = nullptr;

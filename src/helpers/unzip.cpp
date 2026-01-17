@@ -780,12 +780,12 @@ Unzip::get_stream_data(char * data, uint32_t & data_size)
 }
 
 // Test version of get_file using stream methods
-char * 
+std::unique_ptr<char[], MallocDeleter> 
 Unzip::get_file(const char * filename, uint32_t & file_size)
 {
   // LOG_D("get_file: %s", filename);
   
-  char * data        = nullptr;
+  std::unique_ptr<char[], MallocDeleter> data;
   char * window      = nullptr;
   int    total       = 0;
   int    err         = 0;
@@ -798,10 +798,12 @@ Unzip::get_file(const char * filename, uint32_t & file_size)
 
     stream_opened = true;
 
-    if ((data = (char *) allocate(file_size + 1)) == nullptr) ERR(19);
+    char *raw_mem = (char *) allocate(file_size + 1);
+    if (raw_mem == nullptr) ERR(19);
+    data.reset(raw_mem); // Take ownership
     data[file_size] = 0;
 
-    char   * data_ptr = data;
+    char   * data_ptr = data.get();
     uint32_t size     = file_size;
 
     while (get_stream_data(data_ptr, size) && ((total + size) <= file_size)) {
@@ -829,9 +831,8 @@ Unzip::get_file(const char * filename, uint32_t & file_size)
   if (stream_opened) close_stream_file();
 
   if (!completed) {
-    if (data   != nullptr) free(data);
+    if (data) data.reset(); // Release and free memory
     if (window != nullptr) free(window);
-    data = nullptr;
     file_size = 0;
     LOG_E("Unzip get (stream version): Error!: %d", err);
   }
