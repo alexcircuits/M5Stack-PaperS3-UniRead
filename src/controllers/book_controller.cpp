@@ -159,6 +159,11 @@ BookController::open_book_file(
           }
         }
         break;
+      
+      case EventMgr::EventKind::SWIPE_DOWN:
+        // Return to Library listing
+        app_controller.set_controller(AppController::Ctrl::DIR);
+        break;
 
       case EventMgr::EventKind::SWIPE_LEFT:
         if (event.y < (Screen::get_height() - 40)) {

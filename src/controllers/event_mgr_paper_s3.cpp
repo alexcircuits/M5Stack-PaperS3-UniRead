@@ -214,6 +214,12 @@ static void touch_task(void * param)
           ev.kind = (dx > 0) ? EventMgr::EventKind::SWIPE_RIGHT
                              : EventMgr::EventKind::SWIPE_LEFT;
         }
+        else if ((abs_dy > abs_dx) && (abs_dy > (int)swipe_threshold)) {
+          // Vertical swipe?
+          if (dy < 0) { // dy = start_y - current_y. if current > start, dy is negative -> Moving DOWN
+             ev.kind = EventMgr::EventKind::SWIPE_DOWN;
+          }
+        }
         else {
           // Short interaction: treat as a TAP.
           ev.kind = EventMgr::EventKind::TAP;
