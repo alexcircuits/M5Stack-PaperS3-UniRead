@@ -58,7 +58,7 @@ class BookController
                         const std::string & book_filename, 
                         const PageLocs::PageId & page_id);
 
-    void goto_page();
+
 
     inline const PageLocs::PageId & get_current_page_id() { return current_page_id; }
     inline void set_current_page_id(const PageLocs::PageId & page_id) { current_page_id = page_id; }
@@ -67,10 +67,6 @@ class BookController
     static constexpr char const * TAG = "BookController";
 
     PageLocs::PageId current_page_id;
-    bool             keypad_is_shown = false;
-    std::string      entered_page_num_str;
-
-    void _show_keypad_input();
 };
 
 #if __BOOK_CONTROLLER__

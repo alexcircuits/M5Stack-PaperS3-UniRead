@@ -21,61 +21,7 @@
 
 #include "screen.hpp"
 
-void 
-BookController::_show_keypad_input()
-{
-  // 1. Redraw Keypad (this clears the keypad area)
-  keyboard_viewer.get_num();
-
-  // 2. Clear Text Area (above keypad)
-  // KB_H = 350. Top Y = (Screen::get_height() - 350) / 2
-  int16_t kb_top_y = (Screen::get_height() - 350) / 2;
-  // Clear a strip of 50px above keypad
-  screen.draw_rectangle(Dim(Screen::get_width(), 50), Pos(0, kb_top_y - 60), 255); // White
-
-  // 3. Draw Text
-  if (!entered_page_num_str.empty()) {
-    Page::Format fmt = {
-      .line_height_factor = 1.0,
-      .font_index         = 2, // Large font
-      .font_size          = 20,
-      .indent             = 0,
-      .margin_left        = 0,
-      .margin_right       = 0,
-      .margin_top         = 0,
-      .margin_bottom      = 0,
-      .screen_left        = 0,
-      .screen_right       = 0,
-      .screen_top         = 0,
-      .screen_bottom      = 0,
-      .width              = 0,
-      .height             = 0,
-      .vertical_align     = 0, // Top
-      .trim               = true,
-      .pre                = false,
-      .font_style         = Fonts::FaceStyle::NORMAL,
-      .align              = CSS::Align::CENTER,
-      .text_transform     = CSS::TextTransform::NONE,
-      .display            = CSS::Display::BLOCK
-    };
-
-    // Center text 
-    Pos pos(Page::HORIZONTAL_CENTER, kb_top_y - 50);
-    page.put_str_at(entered_page_num_str, pos, fmt);
-  }
-  
-  // 4. Update Screen
-  screen.update(); 
-}
-
-void 
-BookController::goto_page()
-{
-  LOG_D("goto_page() called.");
-  keypad_is_shown = true;
-  entered_page_num_str = "";
-  _show_keypad_input();
-}
+// Methods removed: _show_keypad_input, goto_page
 
 void 
 BookController::enter()
@@ -141,45 +87,7 @@ BookController::open_book_file(
   void 
   BookController::input_event(const EventMgr::Event & event)
   {
-    if (keypad_is_shown) {
-      char ch = 0;
-      if (keyboard_viewer.event(event, ch)) {
-        if (ch == '\r') {
-          // OK/Enter
-          if (!entered_page_num_str.empty()) {
-             int page_num = atoi(entered_page_num_str.c_str());
-
-             const PageLocs::PageId * pid = page_locs.get_page_id_from_nbr(page_num);
-             if (pid != nullptr) {
-               current_page_id = *pid;
-             }
-
-             keypad_is_shown = false;
-             book_viewer.show_page(current_page_id); // Refresh
-          } else {
-             keypad_is_shown = false;
-             book_viewer.show_page(current_page_id);
-          }
-        } 
-        else if (ch == '\b') {
-          if (!entered_page_num_str.empty()) {
-            entered_page_num_str.pop_back();
-            _show_keypad_input();
-          }
-        }
-        else {
-          entered_page_num_str += ch;
-          _show_keypad_input();
-        }
-      }
-      // If tap outside, cancel?
-      else if (event.kind == EventMgr::EventKind::TAP) {
-        // Cancel
-        keypad_is_shown = false;
-        book_viewer.show_page(current_page_id);
-      }
-      return;
-    }
+    // Keypad logic removed in favor of Interactive Progress Slider
 
     const PageLocs::PageId * page_id;
     switch (event.kind) {
@@ -262,20 +170,29 @@ BookController::open_book_file(
             app_controller.set_controller(AppController::Ctrl::PARAM);
           }
         } else {           
-          // Bottom area tap
-          LOG_D("TAP event at y=%d, x=%d. Screen Width: %d", event.y, event.x, Screen::get_width());
-          if ((event.x > (Screen::get_width() / 3)) && 
-              (event.x < ((Screen::get_width() / 3) * 2))) {
-            // Center tap: Go To Page
-            LOG_D("Center tap detected! Calling goto_page()");
-            goto_page();
-          }
-          else {
-            // Left or Right corner tap: Open Menu
-             LOG_D("Side tap detected. Opening Menu.");
-             app_controller.set_controller(AppController::Ctrl::PARAM);
+          // Bottom area tap: Interactive Progress Slider
+          LOG_D("Tabs on Bottom Slider area. x=%d", event.x);
+          
+          int16_t screen_width = Screen::get_width();
+          float percentage = (float)event.x / (float)screen_width;
+          
+          int16_t page_count = page_locs.get_page_count();
+          if (page_count > 0) {
+             int target_page_num = (int)(percentage * page_count);
+             if (target_page_num < 0) target_page_num = 0;
+             if (target_page_num >= page_count) target_page_num = page_count - 1;
+
+             LOG_D("Jumping to page %d / %d (%.2f%%)", target_page_num, page_count, percentage * 100);
+
+             const PageLocs::PageId * pid = page_locs.get_page_id_from_nbr(target_page_num);
+             if (pid != nullptr) {
+               current_page_id = *pid;
+               book_viewer.show_page(current_page_id);
+             }
           }
         }
+          
+// Duplicate logic removed
         break;
         
       default:
