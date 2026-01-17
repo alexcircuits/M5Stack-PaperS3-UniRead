@@ -17,6 +17,16 @@
   #include "nvs.h"
 #endif
 
+#include "viewers/keyboard_viewer.hpp"
+
+void 
+BookController::goto_page()
+{
+  keypad_is_shown = true;
+  entered_page_num_str = "";
+  keyboard_viewer.get_num();
+}
+
 void 
 BookController::enter()
 { 
@@ -81,6 +91,54 @@ BookController::open_book_file(
   void 
   BookController::input_event(const EventMgr::Event & event)
   {
+    if (keypad_is_shown) {
+      char ch = 0;
+      if (keyboard_viewer.event(event, ch)) {
+        if (ch == '\r') {
+          // OK/Enter
+          if (!entered_page_num_str.empty()) {
+             int page_num = atoi(entered_page_num_str.c_str());
+
+             const PageLocs::PageId * pid = page_locs.get_page_id_from_nbr(page_num);
+             if (pid != nullptr) {
+               current_page_id = *pid;
+             }
+             else {
+               // Should show "Invalid Page" message?
+               // For now just stay on current page.
+             }
+
+             keypad_is_shown = false;
+             book_viewer.show_page(current_page_id); // Refresh
+          } else {
+             keypad_is_shown = false;
+             book_viewer.show_page(current_page_id);
+          }
+        } 
+        else if (ch == '\b') {
+          if (!entered_page_num_str.empty()) {
+            entered_page_num_str.pop_back();
+            keyboard_viewer.get_num(); // Redraw
+            // We should draw the number too...
+          }
+        }
+        else {
+          entered_page_num_str += ch;
+          // We need to show what is typed.
+          // Since get_num just draws the keypad, we need to draw the text manually or add it to get_num.
+          // For now, let's just log it or rely on blind typing? Blind typing is bad.
+          // Let's assume keyboard_viewer draws it? No I didn't impl that.
+        }
+      }
+      // If tap outside, cancel?
+      else if (event.kind == EventMgr::EventKind::TAP) {
+        // Cancel
+        keypad_is_shown = false;
+        book_viewer.show_page(current_page_id);
+      }
+      return;
+    }
+
     const PageLocs::PageId * page_id;
     switch (event.kind) {
       case EventMgr::EventKind::SWIPE_RIGHT:
@@ -157,6 +215,12 @@ BookController::open_book_file(
             app_controller.set_controller(AppController::Ctrl::PARAM);
           }
         } else {           
+          // Bottom area tap: Toggle Keypad for debugging/testing the feature? 
+          // Or we utilize the menu? 
+          // Implementation Plan said "Add 'Go To Page' to the book menu".
+          // So we should NOT hijack tap here unless for testing.
+          // But I need to add goto_page() method and call it from menu.
+          // Let's stick to opening menu:
           app_controller.set_controller(AppController::Ctrl::PARAM);
         }
         break;

@@ -7,6 +7,7 @@
 
 #include "controllers/common_actions.hpp"
 #include "controllers/app_controller.hpp"
+#include "controllers/book_controller.hpp"
 #include "controllers/books_dir_controller.hpp"
 #include "controllers/ntp.hpp"
 #include "controllers/clock.hpp"
@@ -328,10 +329,18 @@ init_nvs()
 // IMPORTANT!!!
 // The first (menu[0]) and the last menu entry (the one before END_MENU) MUST ALWAYS BE VISIBLE!!!
 
+// ... (CommonActions omitted)
+
+static void goto_page_action() {
+  app_controller.set_controller(AppController::Ctrl::BOOK);
+  book_controller.goto_page();
+}
+
 static MenuViewer::MenuEntry menu[] = {
 
   { MenuViewer::Icon::RETURN,        "Return to the e-books list",           CommonActions::return_to_last    , true,  true  },
   { MenuViewer::Icon::BOOK,          "Return to the last e-book being read", CommonActions::show_last_book    , true,  true  },
+  { MenuViewer::Icon::TOC,           "Go to page",                           goto_page_action                 , true,  true  },
   { MenuViewer::Icon::MAIN_PARAMS,   "Main parameters",                      main_parameters                  , true,  true  },
   { MenuViewer::Icon::FONT_PARAMS,   "Default e-books parameters",           default_parameters               , true,  true  },
   { MenuViewer::Icon::WIFI,          "WiFi Access to the e-books folder",    wifi_mode                        , true,  true  },

@@ -130,6 +130,7 @@ class PageLocs
     const PageId * get_next_page_id(const PageId & page_id, int16_t count = 1);
     const PageId * get_prev_page_id(const PageId & page_id, int     count = 1);
     const PageId *      get_page_id(const PageId & page_id                   );
+    const PageId *      get_page_id_from_nbr(int16_t page_nbr);
 
     uint16_t   get_current_itemref_index() { return item_info.itemref_index; }
     const EPub::ItemInfo & get_item_info() { return item_info;               }

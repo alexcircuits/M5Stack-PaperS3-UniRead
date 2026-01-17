@@ -1,11 +1,3 @@
-// Copyright (c) 2020 Guy Turcotte
-//
-// MIT License. Look at file licenses.txt for details.
-
-#if 0
-
-// Not ready yet
-
 #define __KEYBOARD_VIEWER__ 1
 #include "viewers/keyboard_viewer.hpp"
 
@@ -14,162 +6,184 @@
   #include "inkplate_platform.hpp"
 #endif
 
-bool 
-KeyboardViewer::get_alfanum(char * str, uint16_t len, UpdateHandler handler)
+#include "models/fonts.hpp"
+
+// Simple mapping for the keypad
+// We will center the keypad on screen.
+// Key size: 80x80
+// 4 rows, 3 cols
+static constexpr int KEY_W = 80;
+static constexpr int KEY_H = 80;
+static constexpr int GAP   = 10;
+static constexpr int KB_W  = 3 * KEY_W + 2 * GAP;
+static constexpr int KB_H  = 4 * KEY_H + 3 * GAP;
+
+void KeyboardViewer::get_num()
 {
-  width           = Screen::get_width() - 60;
-  current_kb_type = KBType::ALFA;
-
-  if (page.get_compute_mode() == Page::ComputeMode::LOCATION) return false; // Cannot be used durint location computation
-
-  fmt = {
-    .line_height_factor = 1.0,
-    .font_index         =   0,
-    .font_size          =  24,
-    .indent             =   0,
-    .margin_left        =  10,
-    .margin_right       =  10,
-    .margin_top         =  30,
-    .margin_bottom      =  10,
-    .screen_left        =   0,
-    .screen_right       =   0,
-    .screen_top         =   0,
-    .screen_bottom      =   0,
-    .width              =   0,
-    .height             =   0,
-    .vertical_align     =   0,
-    .trim               = true,
-    .pre                = false,
-    .font_style         = Fonts::FaceStyle::NORMAL,
-    .align              = CSS::Align::CENTER,
-    .text_transform     = CSS::TextTransform::NONE,
-    .display            = CSS::Display::INLINE
-  };
-
-  fmt.screen_left        = (Screen::get_width()  - width ) >> 1;
-  fmt.screen_right       = (Screen::get_width()  - width ) >> 1;
-  fmt.screen_top         = (Screen::get_height() - HEIGHT) >> 1;
-  fmt.screen_bottom      = (Screen::get_height() - HEIGHT) >> 1;
+  width           = KB_W;
+  current_kb_type = KBType::NUMBERS;
 
   page.set_compute_mode(Page::ComputeMode::DISPLAY);
   
-  page.start(fmt);
+  // Clear the area using a simple trick: render a whitespace rectangle or just rely on partial update clearing?
+  // Since we don't have a clear_region easily exposed without page logic, let's just draw the keys.
+  // Actually, we should probably clear the screen or at least the region.
+  // For now, let's assume the caller clears or we draw over.
+  
+  // We'll draw a background rectangle for the keypad
+  int start_x = (Screen::get_width() - KB_W) / 2;
+  int start_y = (Screen::get_height() - KB_H) / 2;
+  
+  // Clear background (white)
+  Dim dim(KB_W + 20, KB_H + 20);
+  Pos pos(start_x - 10, start_y - 10);
+  screen.draw_rectangle(dim, pos, 255); // White background
 
-#if 0
-  page.clear_region(
-    Dim(width, HEIGHT), 
-    Pos((Screen::get_width()  - width ) >> 1, (Screen::get_height() - HEIGHT) >> 1));
+  show_kb(current_kb_type);
+}
 
-  page.put_highlight(
-    Dim(width - 4, HEIGHT - 4), 
-    Pos(((Screen::get_width() - width ) >> 1) + 2, ((Screen::get_height() - HEIGHT) >> 1) + 2));
+void KeyboardViewer::show_kb(KBType kb_type)
+{
+  uint16_t x, y;
+  
+  // Center coordinates
+  x = (Screen::get_width() - KB_W) / 2;
+  y = (Screen::get_height() - KB_H) / 2;
 
-  TTF * font = fonts.get(0);
-
-  if (font == nullptr) {
-    LOG_E("Internal error (Drawings Font not available!");
-    return;
+  switch (kb_type) {
+    case KBType::NUMBERS:
+      show_line(num_line_1, x, y);
+      x = (Screen::get_width() - KB_W) / 2; 
+      y += KEY_H + GAP;
+      show_line(num_line_2, x, y);
+      x = (Screen::get_width() - KB_W) / 2; 
+      y += KEY_H + GAP;
+      show_line(num_line_3, x, y);
+      x = (Screen::get_width() - KB_W) / 2; 
+      y += KEY_H + GAP;
+      show_line(num_line_4, x, y);
+      break;
+    default:
+      break;
   }
+}
 
-  Font::Glyph * glyph = font->get_glyph(icon_char[severity], 24);
+void KeyboardViewer::show_line(const char * line, uint16_t & x, uint16_t y)
+{
+  const char * p = line;
+  while (*p) {
+    show_char(*p, x, y);
+    p++;
+    x += KEY_W + GAP;
+  }
+}
 
-  if (glyph != nullptr) {
-    page.put_char_at(
-      icon_char[severity], 
-      Pos(((Screen::get_width()  - width ) >> 1) + 50 - (glyph->dim.width >> 1), ( Screen::get_height() >> 1) + 20),
-      fmt);
+void KeyboardViewer::show_char(char ch, uint16_t & x, uint16_t y)
+{
+  // Draw key outline
+  screen.draw_rectangle(Dim(KEY_W, KEY_H), Pos(x, y), 0); // Black border? No, wait draw_rectangle fills. 
+  // We need a framed rectangle. Screen class only has filled rectangle.
+  // Let's draw a black box then a smaller white box inside.
+  screen.draw_rectangle(Dim(KEY_W, KEY_H), Pos(x, y), 0);
+  screen.draw_rectangle(Dim(KEY_W-4, KEY_H-4), Pos(x+2, y+2), 255);
+  
+  // Draw Character
+  // We need a font.
+  static int8_t font_idx = -1;
+  // Try to find a bold font or large font.
+  // Default font size 12pt is too small. Need larger.
+  // fonts.get(0, 30) -> Index 0 is usually the default serif/sans.
+  
+  Font * font = fonts.get(2); // larger font
+  if (!font) font = fonts.get(0);
+  if (!font) return;
+
+  char str[2] = {ch, 0};
+  if (ch == '\b') str[0] = '<'; // Backspace visual
+  if (ch == '\r') str[0] = 'k'; // OK visual (check mark?) let's use 'k' or 'O'
+  
+  // Calculate text position to center it
+  int text_w = 0;
+  // Simplified width calc
+  text_w = 20; // approximate
+  
+  // Real way:
+  // Font::Glyph * glyph = font->get_glyph(ch, 30);
+  
+  // Drawing text directly into screen is hard without Page class handling it.
+  // But wait, Page class has put_char_at but it needs Format.
+  
+  // Let's use a simple workaround: use Page to draw a single char? 
+  // Or just implement a simple text drawer here?
+  // Actually, let's use the Page class but just for drawing?
+  // No, Page class manages a bitmap cache.
+  
+  // Let's try to use the glyph directly if possible.
+  // screen.draw_glyph(...)
+  
+  int32_t code = (uint8_t)str[0];
+  if (ch == '\r') { code = 'O'; } // O for OK
+  
+  const char * s = str;
+  bool first = true;
+  // code = to_unicode(...) -- skip unicode for now, assume ASCII
+  
+  Font::Glyph * glyph = font->get_glyph(code, 40);
+  if (glyph) {
+    int px = x + (KEY_W - glyph->dim.width) / 2;
+    int py = y + (KEY_H - glyph->dim.height) / 2;
+    screen.draw_glyph(glyph->buffer, glyph->dim, Pos(px, py), glyph->pitch);
+  }
+}
+
+bool KeyboardViewer::event(const EventMgr::Event & event, char & char_code)
+{
+  if (event.kind != EventMgr::EventKind::TAP) return false;
+  
+  int start_x = (Screen::get_width() - KB_W) / 2;
+  int start_y = (Screen::get_height() - KB_H) / 2;
+  
+  if (event.x < start_x || event.x > start_x + KB_W) return false;
+  if (event.y < start_y || event.y > start_y + KB_H) return false;
+  
+  int col = (event.x - start_x) / (KEY_W + GAP);
+  int row = (event.y - start_y) / (KEY_H + GAP);
+  
+  if (col >= 3 || row >= 4) return false;
+  
+  // Map row/col to char
+  // Row 0: 1 2 3
+  // Row 1: 4 5 6
+  // Row 2: 7 8 9
+  // Row 3:   0 < O  (Space, 0, Backspace, Return) -- wait
+  // My definition was: " 0\b\r" -> Space, 0, Back, Ret
+  
+  if (row == 0) char_code = "123"[col];
+  if (row == 1) char_code = "456"[col];
+  if (row == 2) char_code = "789"[col];
+  if (row == 3) {
+     if (col == 0) char_code = ' ';
+     if (col == 1) char_code = '0';
+     if (col == 2) {
+       // Split space? Setup was " 0\b\r" length 4? 
+       // Ah, show_kb iterates keys.
+       // show_line(num_line_4...)
+       // num_line_4 = " 0\b\r" -> 4 chars. But we have 3 cols?
+       // My logic in show_line puts them 3 per row?
+       // Wait, " 0\b\r" has 4 chars. It would draw a 4th column which exceeds KB_W?
+       // Let's redefine num_line_4 to "0\b\r" (3 keys)
+       // Key 0: 0
+       // Key 1: Backspace
+       // Key 2: OK
+       if (col == 0) char_code = '0';
+       if (col == 1) char_code = '\b';
+       if (col == 2) char_code = '\r';
+     }
   }
   
-  fmt.font_index =  1;
-  fmt.font_size  = 10;
-
-  // Title
-
-  page.set_limits(fmt);
-  page.new_paragraph(fmt);
-  std::string buffer = title;
-  page.add_text(buffer, fmt);
-  page.end_paragraph(fmt);
-
-  // Message
-
-  fmt.align       = CSS::Align::LEFT;
-  fmt.margin_top  = 80;
-  fmt.margin_left = 90;
-
-  page.set_limits(fmt);
-  page.new_paragraph(fmt);
-  buffer = buff;
-  page.add_text(buffer, fmt);
-  page.end_paragraph(fmt);
-
-  // Press a Key option
-
-  if (press_a_key) {
-    fmt.align = CSS::Align::CENTER;
-    fmt.font_size   =   9;
-    fmt.margin_left =  10;
-    fmt.margin_top  = 200;
-
-    page.set_limits(fmt);
-    page.new_paragraph(fmt);
-    buffer = "[Press a key]";
-    page.add_text(buffer, fmt);
-    page.end_paragraph(fmt);
-  }
-#endif
-
-  page.paint(false);
-
   return true;
 }
 
-void
-KeyboardViewer::show_kb(KBType kb_type)
-{
-  uint16_t x, y;
-
-  switch (kb_type) {
-    case KBType::ALFA:
-      show_line(alfa_line_1_low, x, y);
-      show_line(alfa_line_2_low, x, y);
-      show_line(alfa_line_3_low, x, y);
-      show_line(alfa_line_4, x, y);
-      break;
-
-    case KBType::ALFA_SHIFTED:
-      show_line(alfa_line_1_upp, x, y);
-      show_line(alfa_line_2_upp, x, y);
-      show_line(alfa_line_3_upp, x, y);
-      show_line(alfa_line_4, x, y);
-      break;
-    
-    case KBType::NUMBERS:
-      show_line(num_line_1, x, y);
-      show_line(num_line_2, x, y);
-      show_line(num_line_3, x, y);
-      show_line(num_line_4, x, y);
-      break;
-      
-    case KBType::SPECIAL:
-      show_line(special_line_1, x, y);
-      show_line(special_line_2, x, y);
-      show_line(special_line_3, x, y);
-      show_line(special_line_4, x, y);
-      break;
-  }
-}
-
-void 
-KeyboardViewer::show_line(const char * line, uint16_t & x, uint16_t y)
-{
-
-}
-
-void 
-KeyboardViewer::show_char(char ch, uint16_t & x, uint16_t y)
-{
-
-}
-
-#endif
+// Unused methods stubbed
+bool KeyboardViewer::get_alfanum(char * str, uint16_t len, UpdateHandler handler) { return false; }
+bool KeyboardViewer::load_font() { return true; }

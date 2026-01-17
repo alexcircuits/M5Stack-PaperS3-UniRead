@@ -1035,3 +1035,23 @@ PageLocs::save(const std::string & epub_filename)
 
   return res;
 }
+
+const PageLocs::PageId * 
+PageLocs::get_page_id_from_nbr(int16_t page_nbr)
+{
+  std::scoped_lock guard(mutex);
+  
+  if (page_nbr < 1) return nullptr;
+  
+  int16_t current_page = 0;
+  
+  for (auto it = pages_map.begin(); it != pages_map.end(); ++it) {
+      if (it->second.size > 0) {
+          current_page++;
+          if (current_page == page_nbr) {
+              return &it->first;
+          }
+      }
+  }
+  return nullptr;
+}
