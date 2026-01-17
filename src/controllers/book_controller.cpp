@@ -220,13 +220,16 @@ BookController::open_book_file(
             app_controller.set_controller(AppController::Ctrl::PARAM);
           }
         } else {           
-          // Bottom area tap: Toggle Keypad for debugging/testing the feature? 
-          // Or we utilize the menu? 
-          // Implementation Plan said "Add 'Go To Page' to the book menu".
-          // So we should NOT hijack tap here unless for testing.
-          // But I need to add goto_page() method and call it from menu.
-          // Let's stick to opening menu:
-          app_controller.set_controller(AppController::Ctrl::PARAM);
+          // Bottom area tap
+          if ((event.x > (Screen::get_width() / 3)) && 
+              (event.x < ((Screen::get_width() / 3) * 2))) {
+            // Center tap: Go To Page
+            goto_page();
+          }
+          else {
+            // Left or Right corner tap: Open Menu
+             app_controller.set_controller(AppController::Ctrl::PARAM);
+          }
         }
         break;
         
