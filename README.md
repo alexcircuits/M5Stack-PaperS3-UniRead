@@ -1,4 +1,4 @@
-# M5Stack-PaperS3-UniRead
+# M5Stack-PaperS3-UniRead (ARCHIVED DUE TO SHITTY CODE)
 
 ## Overview
 **M5Stack-PaperS3-UniRead** is a custom firmware for the [M5Stack Paper S3](https://docs.m5stack.com/en/core/M5PaperS3) device designed to provide a high-quality E-Book reading experience. It is optimized for the E-Ink display, ensuring crisp text rendering and efficient battery usage.
