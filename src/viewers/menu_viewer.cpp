@@ -136,7 +136,7 @@ void MenuViewer::show(MenuEntry * the_menu, uint8_t entry_index, bool clear_scre
   while (!menu[entry_index].visible) entry_index++;
   current_entry_index = entry_index;
 
-  #if !(INKPLATE_6PLUS || TOUCH_TRIAL)
+  #if !(INKPLATE_6PLUS || TOUCH_TRIAL || defined(BOARD_TYPE_PAPER_S3))
     page.put_highlight(
       Dim(entry_locs[entry_index].dim.width  + 8, entry_locs[entry_index].dim.height + 8), 
       Pos(entry_locs[entry_index].pos.x      - 4, entry_locs[entry_index].pos.y - 4));
@@ -145,7 +145,7 @@ void MenuViewer::show(MenuEntry * the_menu, uint8_t entry_index, bool clear_scre
   fmt.font_index = 1;
   fmt.font_size  = CAPTION_SIZE;
   
-  #if (INKPLATE_6PLUS || TOUCH_TRIAL)
+  #if (INKPLATE_6PLUS || TOUCH_TRIAL || defined(BOARD_TYPE_PAPER_S3))
     page.put_str_at(TOUCH_AND_HOLD_STR, Pos{ 10, text_ypos }, fmt);
     hint_shown = false;
   #else
@@ -162,7 +162,7 @@ void MenuViewer::show(MenuEntry * the_menu, uint8_t entry_index, bool clear_scre
   page.paint(clear_screen);
 }
 
-#if (INKPLATE_6PLUS || TOUCH_TRIAL)
+#if (INKPLATE_6PLUS || TOUCH_TRIAL || defined(BOARD_TYPE_PAPER_S3))
   uint8_t
   MenuViewer::find_index(uint16_t x, uint16_t y)
   {
@@ -188,7 +188,7 @@ void MenuViewer::show(MenuEntry * the_menu, uint8_t entry_index, bool clear_scre
 void 
 MenuViewer::clear_highlight()
 {
-  #if (INKPLATE_6PLUS || TOUCH_TRIAL)
+  #if (INKPLATE_6PLUS || TOUCH_TRIAL || defined(BOARD_TYPE_PAPER_S3))
     Page::Format fmt = {
       .line_height_factor =   1.0,
       .font_index         =     1,
@@ -257,7 +257,7 @@ MenuViewer::event(const EventMgr::Event & event)
     .display            = CSS::Display::INLINE
   };
 
-  #if (INKPLATE_6PLUS || TOUCH_TRIAL)
+  #if (INKPLATE_6PLUS || TOUCH_TRIAL || defined(BOARD_TYPE_PAPER_S3))
 
     switch (event.kind) {
       case EventMgr::EventKind::HOLD:

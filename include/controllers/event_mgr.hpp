@@ -15,7 +15,7 @@
 class EventMgr
 {
   public:
-    #if INKPLATE_6PLUS || TOUCH_TRIAL
+    #if INKPLATE_6PLUS || TOUCH_TRIAL || defined(BOARD_TYPE_PAPER_S3)
       struct CalibPoint {
         uint16_t x[3], y[3];
       };
@@ -26,7 +26,7 @@ class EventMgr
 
   protected:
     bool stay_on;
-    #if INKPLATE_6PLUS || TOUCH_TRIAL
+    #if INKPLATE_6PLUS || TOUCH_TRIAL || defined(BOARD_TYPE_PAPER_S3)
       
       int64_t    a, b, c, d, e, f, divider;
       
@@ -45,7 +45,7 @@ class EventMgr
   public:
     static constexpr char const * TAG = "EventMgr";
 
-    #if INKPLATE_6PLUS || TOUCH_TRIAL
+    #if INKPLATE_6PLUS || TOUCH_TRIAL || defined(BOARD_TYPE_PAPER_S3)
       enum class EventKind { NONE,        TAP,           HOLD,         SWIPE_LEFT, 
                              SWIPE_RIGHT, SWIPE_DOWN,    PINCH_ENLARGE, PINCH_REDUCE, RELEASE      };
 

@@ -112,6 +112,13 @@
       return;
     }
 
+    // Clear background to prevent ghosting
+    // Assuming height is approx 20px for status bar area
+    // page.clear_region(Dim(100, 25), Pos(0, Screen::get_height() - 25));
+    // Actually, let's use a safe calculated height based on font
+    int16_t h = font->get_chars_height(9) + 10;
+    page.clear_region(Dim(100, h), Pos(0, Screen::get_height() - h));
+
     // Map 3.6V .. 4.2V to 0..4 icons
     float   value = ((voltage - 3.6f) * 4.0f) / (4.2f - 3.6f);
     if (value < 0) value = 0;

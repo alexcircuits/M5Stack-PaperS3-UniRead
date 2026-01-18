@@ -223,7 +223,7 @@ BooksDirController::leave(bool going_to_deep_sleep)
 
 }
 
-#if INKPLATE_6PLUS || TOUCH_TRIAL
+#if INKPLATE_6PLUS || TOUCH_TRIAL || defined(BOARD_TYPE_PAPER_S3)
   void 
   BooksDirController::input_event(const EventMgr::Event & event)
   {

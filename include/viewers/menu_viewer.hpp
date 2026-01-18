@@ -39,6 +39,9 @@ class MenuViewer
     #if INKPLATE_6PLUS
       static const int16_t SPACE_BETWEEN_ICONS = 70;
       static const int16_t ICONS_LEFT_OFFSET   = 20;
+    #elif defined(BOARD_TYPE_PAPER_S3)
+      static const int16_t SPACE_BETWEEN_ICONS = 40;
+      static const int16_t ICONS_LEFT_OFFSET   = 10;
     #else
       static const int16_t SPACE_BETWEEN_ICONS = 50;
       static const int16_t ICONS_LEFT_OFFSET   = 10;
@@ -53,7 +56,7 @@ class MenuViewer
     uint16_t icon_ypos,
              text_ypos;
 
-    #if (INKPLATE_6PLUS || TOUCH_TRIAL)
+    #if (INKPLATE_6PLUS || TOUCH_TRIAL || defined(BOARD_TYPE_PAPER_S3))
       bool    hint_shown;
       uint8_t find_index(uint16_t x, uint16_t y);
     #endif

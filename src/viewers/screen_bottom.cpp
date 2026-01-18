@@ -50,6 +50,7 @@ ScreenBottom::show(int16_t page_nbr, int16_t page_count)
         Screen::get_width(), h, 
         0, Screen::get_height() - h);
 
+  // Clear the bottom area line by line to avoid ghosting if possible, or just the whole strip
   page.clear_region(Dim(Screen::get_width(), h),
                     Pos(0, Screen::get_height() - h));
 
@@ -117,8 +118,9 @@ ScreenBottom::show(int16_t page_nbr, int16_t page_count)
            << std::setw(2) << +time.tm_min;
 
       fmt.align = CSS::Align::RIGHT;
+      // Position at the right edge minus margin
       page.put_str_at(ostr.str(),
-                      Pos(Page::HORIZONTAL_CENTER, 
+                      Pos(Screen::get_width() - 10, 
                           Screen::get_height() + font->get_descender_height(FONT_SIZE) - 2), 
                       fmt);
     }

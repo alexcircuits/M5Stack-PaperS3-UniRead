@@ -38,7 +38,7 @@ static int8_t old_show_images;
 static int8_t old_use_fonts_in_book;
 static int8_t old_font;
 
-#if INKPLATE_6PLUS || TOUCH_TRIAL
+#if INKPLATE_6PLUS || TOUCH_TRIAL || defined(BOARD_TYPE_PAPER_S3)
   static constexpr int8_t BOOK_PARAMS_FORM_SIZE = 5;
 #else
   static constexpr int8_t BOOK_PARAMS_FORM_SIZE = 4;
@@ -64,7 +64,7 @@ static FormEntry book_params_form_entries[BOOK_PARAMS_FORM_SIZE] = {
                    .choice_count = 2,
                    .choices = FormChoiceField::yes_no_choices } },
     .entry_type = FormEntryType::HORIZONTAL },
-  #if INKPLATE_6PLUS || TOUCH_TRIAL
+  #if INKPLATE_6PLUS || TOUCH_TRIAL || defined(BOARD_TYPE_PAPER_S3)
     { .caption = " DONE ",
       .u = { .ch = { .value = &done_res,
                      .choice_count = 0,

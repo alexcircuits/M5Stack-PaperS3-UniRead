@@ -1,0 +1,323 @@
+Processing paper_s3 (platform: espressif32; board: esp32-s3-devkitm-1; framework: espidf)
+--------------------------------------------------------------------------------
+Verbose mode can be enabled via `-v, --verbose` option
+CONFIGURATION: https://docs.platformio.org/page/boards/espressif32/esp32-s3-devkitm-1.html
+PLATFORM: Espressif 32 (6.12.0) > Espressif ESP32-S3-DevKitM-1
+HARDWARE: ESP32S3 240MHz, 320KB RAM, 16MB Flash
+DEBUG: Current (esp-builtin) On-board (esp-builtin) External (cmsis-dap, esp-bridge, esp-prog, iot-bus-jtag, jlink, minimodule, olimex-arm-usb-ocd, olimex-arm-usb-ocd-h, olimex-arm-usb-tiny-h, olimex-jtag-tiny, tumpa)
+PACKAGES: 
+ - framework-espidf @ 3.50500.0 (5.5.0) 
+ - tool-cmake @ 3.30.2 
+ - tool-esp-rom-elfs @ 0.0.1+20241011 
+ - tool-esptoolpy @ 2.40900.250804 (4.9.0) 
+ - tool-ninja @ 1.9.0 
+ - tool-riscv32-esp-elf-gdb @ 12.1.0+20221002 
+ - tool-xtensa-esp-elf-gdb @ 12.1.0+20221002 
+ - toolchain-esp32ulp @ 1.23800.240113 (2.38.0) 
+ - toolchain-riscv32-esp @ 14.2.0+20241119 
+ - toolchain-xtensa-esp-elf @ 14.2.0+20241119
+Reading CMake configuration...
+LDF: Library Dependency Finder -> https://bit.ly/configure-pio-ldf
+LDF Modes: Finder ~ chain, Compatibility ~ soft
+Found 5 compatible libraries
+Scanning dependencies...
+Dependency Graph
+|-- EPub_InkPlate
+|-- externals
+|-- src
+|-- src
+Building in release mode
+Compiling .pio/build/paper_s3/src/controllers/app_controller.cpp.o
+Compiling .pio/build/paper_s3/src/controllers/book_controller.cpp.o
+Compiling .pio/build/paper_s3/src/controllers/book_param_controller.cpp.o
+Compiling .pio/build/paper_s3/src/controllers/books_dir_controller.cpp.o
+Compiling .pio/build/paper_s3/src/controllers/common_actions.cpp.o
+Compiling .pio/build/paper_s3/src/controllers/event_mgr_paper_s3.cpp.o
+Compiling .pio/build/paper_s3/src/controllers/ntp.cpp.o
+Compiling .pio/build/paper_s3/src/controllers/option_controller.cpp.o
+Compiling .pio/build/paper_s3/src/controllers/toc_controller.cpp.o
+Compiling .pio/build/paper_s3/src/controllers/web_server.cpp.o
+Compiling .pio/build/paper_s3/src/controllers/wifi.cpp.o
+In file included from include/controllers/book_param_controller.hpp:6,
+                 from src/controllers/book_param_controller.cpp:6:
+include_global/global.hpp:22:4: error: #error "BUILD_TYPE Not Set."
+   22 |   #error "BUILD_TYPE Not Set."
+      |    ^~~~~
+In file included from include/controllers/app_controller.hpp:6,
+                 from src/controllers/app_controller.cpp:6:
+include_global/global.hpp:22:4: error: #error "BUILD_TYPE Not Set."
+   22 |   #error "BUILD_TYPE Not Set."
+      |    ^~~~~
+In file included from include/controllers/book_controller.hpp:6,
+                 from src/controllers/book_controller.cpp:6:
+include_global/global.hpp:22:4: error: #error "BUILD_TYPE Not Set."
+   22 |   #error "BUILD_TYPE Not Set."
+      |    ^~~~~
+In file included from include/controllers/books_dir_controller.hpp:6,
+                 from src/controllers/books_dir_controller.cpp:6:
+include_global/global.hpp:22:4: error: #error "BUILD_TYPE Not Set."
+   22 |   #error "BUILD_TYPE Not Set."
+      |    ^~~~~
+In file included from include/controllers/common_actions.hpp:6,
+                 from src/controllers/common_actions.cpp:6:
+include_global/global.hpp:22:4: error: #error "BUILD_TYPE Not Set."
+   22 |   #error "BUILD_TYPE Not Set."
+      |    ^~~~~
+In file included from src/controllers/event_mgr_paper_s3.cpp:5:
+include_global/global.hpp:22:4: error: #error "BUILD_TYPE Not Set."
+   22 |   #error "BUILD_TYPE Not Set."
+      |    ^~~~~
+In file included from include/controllers/option_controller.hpp:6,
+                 from src/controllers/option_controller.cpp:6:
+include_global/global.hpp:22:4: error: #error "BUILD_TYPE Not Set."
+   22 |   #error "BUILD_TYPE Not Set."
+      |    ^~~~~
+In file included from include/controllers/ntp.hpp:3,
+                 from src/controllers/ntp.cpp:4:
+include_global/global.hpp:22:4: error: #error "BUILD_TYPE Not Set."
+   22 |   #error "BUILD_TYPE Not Set."
+      |    ^~~~~
+In file included from include/controllers/toc_controller.hpp:6,
+                 from src/controllers/toc_controller.cpp:6:
+include_global/global.hpp:22:4: error: #error "BUILD_TYPE Not Set."
+   22 |   #error "BUILD_TYPE Not Set."
+      |    ^~~~~
+In file included from src/controllers/web_server.cpp:6:
+include_global/global.hpp:22:4: error: #error "BUILD_TYPE Not Set."
+   22 |   #error "BUILD_TYPE Not Set."
+      |    ^~~~~
+In file included from include/controllers/wifi.hpp:3,
+                 from src/controllers/wifi.cpp:2:
+include_global/global.hpp:22:4: error: #error "BUILD_TYPE Not Set."
+   22 |   #error "BUILD_TYPE Not Set."
+      |    ^~~~~
+In file included from lib_esp32/EPub_InkPlate/src/esp.hpp:15,
+                 from lib_esp32/EPub_InkPlate/src/alloc.hpp:8,
+                 from include/models/toc.hpp:11,
+                 from src/controllers/book_param_controller.cpp:16:
+/Users/oleksandrchepkov/.platformio/packages/framework-espidf/components/driver/deprecated/driver/adc.h:19:2: warning: #warning "legacy adc driver is deprecated, please migrate to use esp_adc/adc_oneshot.h and esp_adc/adc_continuous.h for oneshot mode and continuous mode drivers respectively" [-Wcpp]
+   19 | #warning "legacy adc driver is deprecated, please migrate to use esp_adc/adc_oneshot.h and esp_adc/adc_continuous.h for oneshot mode and continuous mode drivers respectively"
+      |  ^~~~~~~
+In file included from lib_esp32/EPub_InkPlate/src/esp.hpp:15,
+                 from lib_esp32/EPub_InkPlate/src/alloc.hpp:8,
+                 from include/models/toc.hpp:11,
+                 from src/controllers/toc_controller.cpp:13:
+/Users/oleksandrchepkov/.platformio/packages/framework-espidf/components/driver/deprecated/driver/adc.h:19:2: warning: #warning "legacy adc driver is deprecated, please migrate to use esp_adc/adc_oneshot.h and esp_adc/adc_continuous.h for oneshot mode and continuous mode drivers respectively" [-Wcpp]
+   19 | #warning "legacy adc driver is deprecated, please migrate to use esp_adc/adc_oneshot.h and esp_adc/adc_continuous.h for oneshot mode and continuous mode drivers respectively"
+      |  ^~~~~~~
+src/controllers/event_mgr_paper_s3.cpp: In member function 'const EventMgr::Event& EventMgr::get_event()':
+src/controllers/event_mgr_paper_s3.cpp:313:48: error: too many initializers for 'EventMgr::Event'
+  313 |   static Event event{ EventKind::NONE, 0, 0, 0 };
+      |                                                ^
+*** [.pio/build/paper_s3/src/controllers/event_mgr_paper_s3.cpp.o] Error 1
+*** [.pio/build/paper_s3/src/controllers/web_server.cpp.o] Error 1
+*** [.pio/build/paper_s3/src/controllers/ntp.cpp.o] Error 1
+*** [.pio/build/paper_s3/src/controllers/wifi.cpp.o] Error 1
+In file included from include/viewers/books_dir_viewer.hpp:8,
+                 from include/controllers/books_dir_controller.hpp:11,
+                 from src/controllers/book_param_controller.cpp:10:
+include/models/books_dir.hpp:70:52: error: 'MAIN_FOLDER' was not declared in this scope
+   70 |     static constexpr char const * BOOKS_DIR_FILE = MAIN_FOLDER "/books_dir.db";
+      |                                                    ^~~~~~~~~~~
+include/models/books_dir.hpp:70:52: error: expected ';' at end of member declaration
+   70 |     static constexpr char const * BOOKS_DIR_FILE = MAIN_FOLDER "/books_dir.db";
+      |                                                    ^~~~~~~~~~~
+      |                                                               ;
+include/models/books_dir.hpp:70:64: error: expected unqualified-id before string constant
+   70 |     static constexpr char const * BOOKS_DIR_FILE = MAIN_FOLDER "/books_dir.db";
+      |                                                                ^~~~~~~~~~~~~~~
+In file included from include/viewers/books_dir_viewer.hpp:8,
+                 from include/controllers/books_dir_controller.hpp:11,
+                 from src/controllers/book_controller.cpp:9:
+include/models/books_dir.hpp:70:52: error: 'MAIN_FOLDER' was not declared in this scope
+   70 |     static constexpr char const * BOOKS_DIR_FILE = MAIN_FOLDER "/books_dir.db";
+      |                                                    ^~~~~~~~~~~
+include/models/books_dir.hpp:70:52: error: expected ';' at end of member declaration
+   70 |     static constexpr char const * BOOKS_DIR_FILE = MAIN_FOLDER "/books_dir.db";
+      |                                                    ^~~~~~~~~~~
+      |                                                               ;
+include/models/books_dir.hpp:70:64: error: expected unqualified-id before string constant
+   70 |     static constexpr char const * BOOKS_DIR_FILE = MAIN_FOLDER "/books_dir.db";
+      |                                                                ^~~~~~~~~~~~~~~
+include/models/books_dir.hpp:71:52: error: 'MAIN_FOLDER' was not declared in this scope
+   71 |     static constexpr char const * NEW_DIR_FILE   = MAIN_FOLDER "/new_dir.db";
+      |                                                    ^~~~~~~~~~~
+include/models/books_dir.hpp:71:52: error: expected ';' at end of member declaration
+   71 |     static constexpr char const * NEW_DIR_FILE   = MAIN_FOLDER "/new_dir.db";
+      |                                                    ^~~~~~~~~~~
+      |                                                               ;
+include/models/books_dir.hpp:71:64: error: expected unqualified-id before string constant
+   71 |     static constexpr char const * NEW_DIR_FILE   = MAIN_FOLDER "/new_dir.db";
+      |                                                                ^~~~~~~~~~~~~
+In file included from include/viewers/books_dir_viewer.hpp:8,
+                 from include/controllers/books_dir_controller.hpp:11:
+include/models/books_dir.hpp:70:52: error: 'MAIN_FOLDER' was not declared in this scope
+   70 |     static constexpr char const * BOOKS_DIR_FILE = MAIN_FOLDER "/books_dir.db";
+      |                                                    ^~~~~~~~~~~
+include/models/books_dir.hpp:70:52: error: expected ';' at end of member declaration
+   70 |     static constexpr char const * BOOKS_DIR_FILE = MAIN_FOLDER "/books_dir.db";
+      |                                                    ^~~~~~~~~~~
+      |                                                               ;
+include/models/books_dir.hpp:70:64: error: expected unqualified-id before string constant
+   70 |     static constexpr char const * BOOKS_DIR_FILE = MAIN_FOLDER "/books_dir.db";
+      |                                                                ^~~~~~~~~~~~~~~
+include/models/books_dir.hpp:71:52: error: 'MAIN_FOLDER' was not declared in this scope
+   71 |     static constexpr char const * NEW_DIR_FILE   = MAIN_FOLDER "/new_dir.db";
+      |                                                    ^~~~~~~~~~~
+include/models/books_dir.hpp:71:52: error: expected ';' at end of member declaration
+   71 |     static constexpr char const * NEW_DIR_FILE   = MAIN_FOLDER "/new_dir.db";
+      |                                                    ^~~~~~~~~~~
+      |                                                               ;
+include/models/books_dir.hpp:71:64: error: expected unqualified-id before string constant
+   71 |     static constexpr char const * NEW_DIR_FILE   = MAIN_FOLDER "/new_dir.db";
+      |                                                                ^~~~~~~~~~~~~
+In file included from include/viewers/books_dir_viewer.hpp:8,
+                 from include/controllers/books_dir_controller.hpp:11,
+                 from src/controllers/app_controller.cpp:8:
+include/models/books_dir.hpp:70:52: error: 'MAIN_FOLDER' was not declared in this scope
+   70 |     static constexpr char const * BOOKS_DIR_FILE = MAIN_FOLDER "/books_dir.db";
+      |                                                    ^~~~~~~~~~~
+include/models/books_dir.hpp:70:52: error: expected ';' at end of member declaration
+   70 |     static constexpr char const * BOOKS_DIR_FILE = MAIN_FOLDER "/books_dir.db";
+      |                                                    ^~~~~~~~~~~
+      |                                                               ;
+include/models/books_dir.hpp:70:64: error: expected unqualified-id before string constant
+   70 |     static constexpr char const * BOOKS_DIR_FILE = MAIN_FOLDER "/books_dir.db";
+      |                                                                ^~~~~~~~~~~~~~~
+include/models/books_dir.hpp:71:52: error: 'MAIN_FOLDER' was not declared in this scope
+   71 |     static constexpr char const * NEW_DIR_FILE   = MAIN_FOLDER "/new_dir.db";
+      |                                                    ^~~~~~~~~~~
+include/models/books_dir.hpp:71:52: error: expected ';' at end of member declaration
+   71 |     static constexpr char const * NEW_DIR_FILE   = MAIN_FOLDER "/new_dir.db";
+      |                                                    ^~~~~~~~~~~
+      |                                                               ;
+include/models/books_dir.hpp:71:64: error: expected unqualified-id before string constant
+   71 |     static constexpr char const * NEW_DIR_FILE   = MAIN_FOLDER "/new_dir.db";
+      |                                                                ^~~~~~~~~~~~~
+include/models/books_dir.hpp:71:52: error: 'MAIN_FOLDER' was not declared in this scope
+   71 |     static constexpr char const * NEW_DIR_FILE   = MAIN_FOLDER "/new_dir.db";
+      |                                                    ^~~~~~~~~~~
+include/models/books_dir.hpp:71:52: error: expected ';' at end of member declaration
+   71 |     static constexpr char const * NEW_DIR_FILE   = MAIN_FOLDER "/new_dir.db";
+      |                                                    ^~~~~~~~~~~
+      |                                                               ;
+include/models/books_dir.hpp:71:64: error: expected unqualified-id before string constant
+   71 |     static constexpr char const * NEW_DIR_FILE   = MAIN_FOLDER "/new_dir.db";
+      |                                                                ^~~~~~~~~~~~~
+In file included from include/viewers/books_dir_viewer.hpp:8,
+                 from include/controllers/books_dir_controller.hpp:11,
+                 from src/controllers/common_actions.cpp:9:
+include/models/books_dir.hpp:70:52: error: 'MAIN_FOLDER' was not declared in this scope
+   70 |     static constexpr char const * BOOKS_DIR_FILE = MAIN_FOLDER "/books_dir.db";
+      |                                                    ^~~~~~~~~~~
+include/models/books_dir.hpp:70:52: error: expected ';' at end of member declaration
+   70 |     static constexpr char const * BOOKS_DIR_FILE = MAIN_FOLDER "/books_dir.db";
+      |                                                    ^~~~~~~~~~~
+      |                                                               ;
+include/models/books_dir.hpp:70:64: error: expected unqualified-id before string constant
+   70 |     static constexpr char const * BOOKS_DIR_FILE = MAIN_FOLDER "/books_dir.db";
+      |                                                                ^~~~~~~~~~~~~~~
+include/models/books_dir.hpp:71:52: error: 'MAIN_FOLDER' was not declared in this scope
+   71 |     static constexpr char const * NEW_DIR_FILE   = MAIN_FOLDER "/new_dir.db";
+      |                                                    ^~~~~~~~~~~
+include/models/books_dir.hpp:71:52: error: expected ';' at end of member declaration
+   71 |     static constexpr char const * NEW_DIR_FILE   = MAIN_FOLDER "/new_dir.db";
+      |                                                    ^~~~~~~~~~~
+      |                                                               ;
+include/models/books_dir.hpp:71:64: error: expected unqualified-id before string constant
+   71 |     static constexpr char const * NEW_DIR_FILE   = MAIN_FOLDER "/new_dir.db";
+      |                                                                ^~~~~~~~~~~~~
+src/controllers/books_dir_controller.cpp: In member function 'void BooksDirController::setup()':
+src/controllers/books_dir_controller.cpp:74:22: error: 'MAIN_FOLDER' was not declared in this scope
+   74 |     FILE * f = fopen(MAIN_FOLDER "/last_book.txt", "r");
+      |                      ^~~~~~~~~~~
+src/controllers/books_dir_controller.cpp: In member function 'void BooksDirController::save_last_book(const PageLocs::PageId&, bool)':
+src/controllers/books_dir_controller.cpp:157:22: error: 'MAIN_FOLDER' was not declared in this scope
+  157 |     FILE * f = fopen(MAIN_FOLDER "/last_book.txt", "w");
+      |                      ^~~~~~~~~~~
+src/controllers/books_dir_controller.cpp:159:28: error: format '%d' expects argument of type 'int', but argument 5 has type 'long int' [-Werror=format=]
+  159 |       fprintf(f, "%s\n%d\n%d\n%d\n",
+      |                           ~^
+      |                            |
+      |                            int
+      |                           %ld
+......
+  162 |         page_id.offset,
+      |         ~~~~~~~~~~~~~~      
+      |                 |
+      |                 long int
+src/controllers/books_dir_controller.cpp: In member function 'void BooksDirController::show_last_book()':
+include_global/global.hpp:41:22: error: 'MAIN_FOLDER' was not declared in this scope
+   41 | #define BOOKS_FOLDER MAIN_FOLDER "/books"
+      |                      ^~~~~~~~~~~
+src/controllers/books_dir_controller.cpp:185:19: note: in expansion of macro 'BOOKS_FOLDER'
+  185 |     book_fname  = BOOKS_FOLDER "/";
+      |                   ^~~~~~~~~~~~
+In file included from include/viewers/books_dir_viewer.hpp:8,
+                 from include/controllers/books_dir_controller.hpp:11,
+                 from src/controllers/toc_controller.cpp:9:
+include/models/books_dir.hpp:70:52: error: 'MAIN_FOLDER' was not declared in this scope
+   70 |     static constexpr char const * BOOKS_DIR_FILE = MAIN_FOLDER "/books_dir.db";
+      |                                                    ^~~~~~~~~~~
+include/models/books_dir.hpp:70:52: error: expected ';' at end of member declaration
+   70 |     static constexpr char const * BOOKS_DIR_FILE = MAIN_FOLDER "/books_dir.db";
+      |                                                    ^~~~~~~~~~~
+      |                                                               ;
+include/models/books_dir.hpp:70:64: error: expected unqualified-id before string constant
+   70 |     static constexpr char const * BOOKS_DIR_FILE = MAIN_FOLDER "/books_dir.db";
+      |                                                                ^~~~~~~~~~~~~~~
+src/controllers/books_dir_controller.cpp: In member function 'void BooksDirController::input_event(const EventMgr::Event&)':
+include_global/global.hpp:41:22: error: 'MAIN_FOLDER' was not declared in this scope
+   41 | #define BOOKS_FOLDER MAIN_FOLDER "/books"
+      |                      ^~~~~~~~~~~
+src/controllers/books_dir_controller.cpp:348:29: note: in expansion of macro 'BOOKS_FOLDER'
+  348 |             book_fname    = BOOKS_FOLDER "/";
+      |                             ^~~~~~~~~~~~
+In file included from include/viewers/books_dir_viewer.hpp:8,
+                 from include/controllers/books_dir_controller.hpp:11,
+                 from src/controllers/option_controller.cpp:11:
+include/models/books_dir.hpp:70:52: error: 'MAIN_FOLDER' was not declared in this scope
+   70 |     static constexpr char const * BOOKS_DIR_FILE = MAIN_FOLDER "/books_dir.db";
+      |                                                    ^~~~~~~~~~~
+include/models/books_dir.hpp:70:52: error: expected ';' at end of member declaration
+   70 |     static constexpr char const * BOOKS_DIR_FILE = MAIN_FOLDER "/books_dir.db";
+      |                                                    ^~~~~~~~~~~
+      |                                                               ;
+include/models/books_dir.hpp:70:64: error: expected unqualified-id before string constant
+   70 |     static constexpr char const * BOOKS_DIR_FILE = MAIN_FOLDER "/books_dir.db";
+      |                                                                ^~~~~~~~~~~~~~~
+include/models/books_dir.hpp:71:52: error: 'MAIN_FOLDER' was not declared in this scope
+   71 |     static constexpr char const * NEW_DIR_FILE   = MAIN_FOLDER "/new_dir.db";
+      |                                                    ^~~~~~~~~~~
+include/models/books_dir.hpp:71:52: error: expected ';' at end of member declaration
+   71 |     static constexpr char const * NEW_DIR_FILE   = MAIN_FOLDER "/new_dir.db";
+      |                                                    ^~~~~~~~~~~
+      |                                                               ;
+include/models/books_dir.hpp:71:64: error: expected unqualified-id before string constant
+   71 |     static constexpr char const * NEW_DIR_FILE   = MAIN_FOLDER "/new_dir.db";
+      |                                                                ^~~~~~~~~~~~~
+include/models/books_dir.hpp:71:52: error: 'MAIN_FOLDER' was not declared in this scope
+   71 |     static constexpr char const * NEW_DIR_FILE   = MAIN_FOLDER "/new_dir.db";
+      |                                                    ^~~~~~~~~~~
+include/models/books_dir.hpp:71:52: error: expected ';' at end of member declaration
+   71 |     static constexpr char const * NEW_DIR_FILE   = MAIN_FOLDER "/new_dir.db";
+      |                                                    ^~~~~~~~~~~
+      |                                                               ;
+include/models/books_dir.hpp:71:64: error: expected unqualified-id before string constant
+   71 |     static constexpr char const * NEW_DIR_FILE   = MAIN_FOLDER "/new_dir.db";
+      |                                                                ^~~~~~~~~~~~~
+*** [.pio/build/paper_s3/src/controllers/common_actions.cpp.o] Error 1
+*** [.pio/build/paper_s3/src/controllers/app_controller.cpp.o] Error 1
+*** [.pio/build/paper_s3/src/controllers/book_controller.cpp.o] Error 1
+cc1plus: some warnings being treated as errors
+*** [.pio/build/paper_s3/src/controllers/books_dir_controller.cpp.o] Error 1
+src/controllers/option_controller.cpp:42:33: warning: 'old_resolution' defined but not used [-Wunused-variable]
+   42 | static Screen::PixelResolution  old_resolution;
+      |                                 ^~~~~~~~~~~~~~
+src/controllers/option_controller.cpp:29:33: warning: 'resolution' defined but not used [-Wunused-variable]
+   29 | static Screen::PixelResolution  resolution;
+      |                                 ^~~~~~~~~~
+*** [.pio/build/paper_s3/src/controllers/toc_controller.cpp.o] Error 1
+*** [.pio/build/paper_s3/src/controllers/book_param_controller.cpp.o] Error 1
+*** [.pio/build/paper_s3/src/controllers/option_controller.cpp.o] Error 1
+========================== [FAILED] Took 3.15 seconds ==========================

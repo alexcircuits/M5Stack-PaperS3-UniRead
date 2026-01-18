@@ -15,7 +15,7 @@
 #include <list>
 
 enum class FormEntryType { HORIZONTAL, VERTICAL, UINT16
-  #if INKPLATE_6PLUS || TOUCH_TRIAL
+  #if INKPLATE_6PLUS || TOUCH_TRIAL || defined(BOARD_TYPE_PAPER_S3)
     , DONE
   #endif
 };
@@ -112,7 +112,7 @@ class FormField
       }
     }
 
-    #if (INKPLATE_6PLUS || TOUCH_TRIAL)
+    #if (INKPLATE_6PLUS || TOUCH_TRIAL || defined(BOARD_TYPE_PAPER_S3))
       inline bool is_pointed(uint16_t x, uint16_t y) {
         return (x >= (field_pos.x - 10)) && 
                (y >= (field_pos.y - 10)) &&
@@ -189,6 +189,13 @@ class FormChoiceField : public FormField
         { "TOP",      1 },
         { "BOTTOM",   0 }
       };
+    #elif defined(BOARD_TYPE_PAPER_S3)
+      static constexpr FormChoice orientation_choices[4] = {
+        { "LEFT",     0 },
+        { "RIGHT",    1 },
+        { "BOTTOM",   2 },
+        { "TOP",      3 }
+      };
     #else
       static constexpr FormChoice orientation_choices[3] = {
         { "LEFT",     0 },
@@ -245,7 +252,7 @@ class FormChoiceField : public FormField
       }
     }
 
-    #if (INKPLATE_6PLUS || TOUCH_TRIAL)
+    #if (INKPLATE_6PLUS || TOUCH_TRIAL || defined(BOARD_TYPE_PAPER_S3))
       bool event(const EventMgr::Event & event) {
         old_item = current_item;
         Items::iterator it;
@@ -463,7 +470,7 @@ class FormUInt16 : public FormField
     }
 };
 
-#if INKPLATE_6PLUS || TOUCH_TRIAL
+#if INKPLATE_6PLUS || TOUCH_TRIAL || defined(BOARD_TYPE_PAPER_S3)
 class FormDone : public FormField
 {
   public:
@@ -524,7 +531,7 @@ class FieldFactory
           }
         case FormEntryType::UINT16:
           return new FormUInt16(entry, font);
-      #if INKPLATE_6PLUS || TOUCH_TRIAL
+      #if INKPLATE_6PLUS || TOUCH_TRIAL || defined(BOARD_TYPE_PAPER_S3)
         case FormEntryType::DONE:
           return new FormDone(entry, font);
       #endif
@@ -562,7 +569,7 @@ class FormViewer
 
     Pos bottom_msg_pos;
 
-    #if (INKPLATE_6PLUS || TOUCH_TRIAL)
+    #if (INKPLATE_6PLUS || TOUCH_TRIAL || defined(BOARD_TYPE_PAPER_S3))
       Fields::iterator find_field(uint16_t x, uint16_t y) {
         for (Fields::iterator it = fields.begin(); it != fields.end(); it++) {
           if ((*it)->is_pointed(x, y)) return it;
@@ -682,7 +689,7 @@ class FormViewer
       if (!refresh) {
         selecting_field = false;
 
-        #if (INKPLATE_6PLUS || TOUCH_TRIAL)
+        #if (INKPLATE_6PLUS || TOUCH_TRIAL || defined(BOARD_TYPE_PAPER_S3))
           current_field = fields.end();
           highlighting_field = false;
         #else
@@ -701,7 +708,7 @@ class FormViewer
 
       completed = false;
       
-      #if (INKPLATE_6PLUS || TOUCH_TRIAL)
+      #if (INKPLATE_6PLUS || TOUCH_TRIAL || defined(BOARD_TYPE_PAPER_S3))
         if (current_field != fields.end()) {
           if (!(*current_field)->event(event)) {
             // The field releases control of future events
@@ -831,13 +838,13 @@ class FormViewer
       }
       else {
         if (highlighting_field) {
-          #if !(INKPLATE_6PLUS || TOUCH_TRIAL)
+          #if !(INKPLATE_6PLUS || TOUCH_TRIAL || defined(BOARD_TYPE_PAPER_S3))
             (*old_field)->show_selected(false);
             (*current_field)->show_highlighted(true);
           #endif
         }
         else {
-          #if !(INKPLATE_6PLUS || TOUCH_TRIAL)
+          #if !(INKPLATE_6PLUS || TOUCH_TRIAL || defined(BOARD_TYPE_PAPER_S3))
             if (selecting_field) {
               selecting_field = false;
               (*current_field)->show_selected(true);

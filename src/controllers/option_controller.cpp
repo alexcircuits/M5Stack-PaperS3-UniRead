@@ -26,7 +26,9 @@
 // static int8_t boolean_value;
 
 static Screen::Orientation     orientation;
+#if !defined(BOARD_TYPE_PAPER_S3)
 static Screen::PixelResolution  resolution;
+#endif
 
 static int8_t show_battery;
 static int8_t timeout;
@@ -39,7 +41,9 @@ static int8_t dir_view;
 static int8_t done;
 
 static Screen::Orientation     old_orientation;
+#if !defined(BOARD_TYPE_PAPER_S3)
 static Screen::PixelResolution  old_resolution;
+#endif
 static int8_t old_show_images;
 static int8_t old_font_size;
 static int8_t old_use_fonts_in_books;
@@ -83,12 +87,12 @@ static FormEntry main_params_form_entries[MAIN_FORM_SIZE] = {
   #else
     { .caption = "Show Heap Sizes :",        .u = { .ch = { .value = &show_heap,              .choice_count = 2, .choices = FormChoiceField::yes_no_choices         } }, .entry_type = FormEntryType::HORIZONTAL  },
   #endif
-  #if INKPLATE_6PLUS || TOUCH_TRIAL
+  #if INKPLATE_6PLUS || TOUCH_TRIAL || defined(BOARD_TYPE_PAPER_S3)
     { .caption = " DONE ",                   .u = { .ch = { .value = &done,                   .choice_count = 0, .choices = nullptr                                 } }, .entry_type = FormEntryType::DONE        }
   #endif
  };
 
-#if INKPLATE_6PLUS || TOUCH_TRIAL
+#if INKPLATE_6PLUS || TOUCH_TRIAL || defined(BOARD_TYPE_PAPER_S3)
   static constexpr int8_t FONT_FORM_SIZE = 5;
 #else
   static constexpr int8_t FONT_FORM_SIZE = 4;
@@ -98,13 +102,13 @@ static FormEntry font_params_form_entries[FONT_FORM_SIZE] = {
   { .caption = "Use Fonts in E-books (*):",   .u = { .ch = { .value = &use_fonts_in_books, .choice_count = 2, .choices = FormChoiceField::yes_no_choices    } }, .entry_type = FormEntryType::HORIZONTAL },
   { .caption = "Default Font (*):",           .u = { .ch = { .value = &default_font,       .choice_count = 8, .choices = FormChoiceField::font_choices      } }, .entry_type = FormEntryType::VERTICAL   },
   { .caption = "Show Images in E-books (*):", .u = { .ch = { .value = &show_images,        .choice_count = 2, .choices = FormChoiceField::yes_no_choices    } }, .entry_type = FormEntryType::HORIZONTAL },
-  #if INKPLATE_6PLUS || TOUCH_TRIAL
+  #if INKPLATE_6PLUS || TOUCH_TRIAL || defined(BOARD_TYPE_PAPER_S3)
     { .caption = " DONE ",                    .u = { .ch = { .value = &done,               .choice_count = 0, .choices = nullptr                            } }, .entry_type = FormEntryType::DONE       }
   #endif
 };
 
 #if DATE_TIME_RTC
-  #if INKPLATE_6PLUS || TOUCH_TRIAL
+  #if INKPLATE_6PLUS || TOUCH_TRIAL || defined(BOARD_TYPE_PAPER_S3)
     static constexpr int8_t DATE_TIME_FORM_SIZE = 7;
   #else
     static constexpr int8_t DATE_TIME_FORM_SIZE = 6;
@@ -118,7 +122,7 @@ static FormEntry font_params_form_entries[FONT_FORM_SIZE] = {
     { .caption = "Minute :", .u = { .val = { .value = &minute, .min =    0, .max =   59 } }, .entry_type = FormEntryType::UINT16  },
     { .caption = "Second :", .u = { .val = { .value = &second, .min =    0, .max =   59 } }, .entry_type = FormEntryType::UINT16  },
 
-    #if INKPLATE_6PLUS || TOUCH_TRIAL
+    #if INKPLATE_6PLUS || TOUCH_TRIAL || defined(BOARD_TYPE_PAPER_S3)
       { .caption = "DONE",   .u = { .ch  = { .value = &done,   .choice_count = 0, .choices = nullptr } }, .entry_type = FormEntryType::DONE    }
     #endif
   };

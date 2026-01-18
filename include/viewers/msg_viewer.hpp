@@ -33,7 +33,7 @@ class MsgViewer {
 
     int16_t dot_count;
 
-    #if INKPLATE_6PLUS || TOUCH_TRIAL
+    #if INKPLATE_6PLUS || TOUCH_TRIAL || defined(BOARD_TYPE_PAPER_S3)
       Pos ok_pos, cancel_pos;
       Dim buttons_dim;
       bool confirmation_required;
